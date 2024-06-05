@@ -3,6 +3,7 @@ package med.voll.api.controller;
 // DELETE FROM flyway_schema_history WHERE version = '1';(cambiar por el numero de version)
 // delete from flyway_schema_history where success = 0;(o esta para eliminar la que ocurrio el error)
 
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import jakarta.transaction.Transactional;
 import jakarta.validation.Valid;
 import med.voll.api.domain.direccion.DatosDireccion;
@@ -23,6 +24,7 @@ import java.net.URI;
 
 @RestController
 @RequestMapping("/medicos")
+@SecurityRequirement(name = "bearer-key")
 public class MedicoController {
 
     @Autowired
