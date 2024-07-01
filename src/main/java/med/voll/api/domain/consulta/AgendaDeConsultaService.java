@@ -1,10 +1,10 @@
 package med.voll.api.domain.consulta;
 
+import jakarta.transaction.Transactional;
 import med.voll.api.domain.consulta.desafio.DatosCancelamientoConsulta;
 import med.voll.api.domain.consulta.desafio.ValidadorCancelamientoDeConsulta;
 import med.voll.api.domain.consulta.validaciones.ValidadorDeConsultas;
 import med.voll.api.domain.medico.Medico;
-import med.voll.api.domain.paciente.Paciente;
 import med.voll.api.infra.errores.ValidacionIntegridad;
 import med.voll.api.repository.IConsultaRepository;
 import med.voll.api.repository.IMedicoRepository;
@@ -16,6 +16,7 @@ import java.util.List;
 
 @Service
 public class AgendaDeConsultaService {
+
     @Autowired
     private IConsultaRepository consultaRepo;
     @Autowired
@@ -28,28 +29,28 @@ public class AgendaDeConsultaService {
     @Autowired
     List<ValidadorCancelamientoDeConsulta> validadoresCancelamiento;
 
-    public DatosDetalleConsulta agendar(DatosAgendarConsulta datos){
+    @Transactional
+    public DatosDetalleConsulta agendar(DatosAgendarConsulta datos) {
 
-        System.out.println("******************La fecha es" +datos.fecha());
-        if(!pacienteRepo.findById(datos.idPaciente()).isPresent()){
+        if (!pacienteRepo.findById(datos.idPaciente()).isPresent()) {
             throw new ValidacionIntegridad("Este id para el paciente no fue encontrado");
         }
 
-        if(datos.idMedico()!=null && !medicoRepo.existsById(datos.idMedico())){
+        if (datos.idMedico() != null && !medicoRepo.existsById(datos.idMedico())) {
             throw new ValidacionIntegridad("Este id para el medico no fue encontrado");
         }
 
-        validadores.forEach(v-> v.validar(datos));
+        validadores.forEach(v -> v.validar(datos));
 
         var paciente = pacienteRepo.findById(datos.idPaciente()).get();
 
         var medico = seleccionarMedico(datos);
 
-        if(medico==null){
+        if (medico == null) {
             throw new ValidacionIntegridad("No existen medicos disponibles para este horario y especialidad");
         }
 
-        var consulta = new Consulta(medico,paciente,datos.fecha());
+        var consulta = new Consulta(medico, paciente, datos.fecha());
 
         consultaRepo.save(consulta);
 
@@ -57,27 +58,28 @@ public class AgendaDeConsultaService {
 
     }
 
-    public void cancelar(DatosCancelamientoConsulta datos){
-        if(!consultaRepo.existsById(datos.idConsulta())){
+    @Transactional
+    public void cancelar(DatosCancelamientoConsulta datos) {
+        if (!consultaRepo.existsById(datos.idConsulta())) {
             throw new ValidacionIntegridad("Id de la consulta no existe");
         }
+        validadoresCancelamiento.forEach(v -> v.validar(datos));
 
-        validadoresCancelamiento.forEach(v->v.validar(datos));
-
-        var consulta = consultaRepo.getReferenceById(datos.idConsulta());
+        Consulta consulta = consultaRepo.getReferenceById(datos.idConsulta());
         consulta.cancelar(datos.motivo());
+
+        consultaRepo.save(consulta);
     }
 
     private Medico seleccionarMedico(DatosAgendarConsulta datosAgendarConsulta) {
 
-        if(datosAgendarConsulta.idMedico()!=null){
+        if (datosAgendarConsulta.idMedico() != null) {
             return medicoRepo.getReferenceById(datosAgendarConsulta.idMedico());
         }
-        if(datosAgendarConsulta.especialidad()==null){
+        if (datosAgendarConsulta.especialidad() == null) {
             throw new ValidacionIntegridad("Debe seleccionarse una especialidad");
         }
-        return medicoRepo.seleccionarMedicoPorEspecialidadEnFecha(datosAgendarConsulta.especialidad(),datosAgendarConsulta.fecha());
+        return medicoRepo.seleccionarMedicoPorEspecialidadEnFecha(datosAgendarConsulta.especialidad(), datosAgendarConsulta.fecha());
     }
 
-    //Primer cambio en intellj
 }

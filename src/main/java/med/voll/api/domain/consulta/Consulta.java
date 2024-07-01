@@ -29,6 +29,8 @@ public class Consulta {
     private Paciente paciente;
 
     private LocalDateTime fecha;
+    
+    private Boolean cancelada = false;
 
     @Column(name = "motivo_cancelamiento")
     @Enumerated(EnumType.STRING)
@@ -41,6 +43,20 @@ public class Consulta {
     }
 
     public void cancelar(MotivoCancelamiento motivo){
+        this.cancelada = true;
         this.motivoCancelamiento = motivo;
+    }
+    
+     public void actualizarInformacion(DatosAgendarConsulta.DatosActualizarConsulta datos, Medico medico , Paciente paciente) {
+  
+        if (datos.idMedico() != null) {
+            this.medico = medico;
+        }
+        if (datos.idPaciente() != null) {
+            this.paciente = paciente;
+        }
+        if (datos.motivoCancelamiento() != null){
+            this.motivoCancelamiento = datos.motivoCancelamiento();
+        }
     }
 }
