@@ -32,42 +32,41 @@ class IMedicoRepositoryTest {
     private IMedicoRepository medicoRepository;
     @Autowired
     private TestEntityManager em;
-//
-//    @Test
-//    @DisplayName("deberia retornar nulo cuando el medico se encuentre en consulta con otro paciente en ese horario")
-//    void seleccionarMedicoPorEspecialidadEnFecha() {
-//
-//        //given(dado)
-//        var proximoLunes10Am = LocalDate.now()
-//                .with(TemporalAdjusters.next(DayOfWeek.MONDAY))
-//                .atTime(10, 0);
-//
-//        var medico = registrarMedico("Franco","fran@email.com", "223787",Especialidad.CARDIOLOGIA);
-//        Paciente paciente;
-//        paciente = registrarPaciente("Mercedes","merce@email.com", "322344");
-//        registrarConsulta(medico, paciente, proximoLunes10Am);
-//
-//        //when(cuando)
-//        var medicoLibre = medicoRepository.seleccionarMedicoPorEspecialidadEnFecha(Especialidad.CARDIOLOGIA, proximoLunes10Am);
-//
-//        //then(entonces)
-//        assertThat(medicoLibre).isNull();
-//    }
 
-//    @Test
-//    @DisplayName("deberia retornar un medico cuando realice la consulta en la base de datos para ese horario")
-//    void seleccionarMedicoPorEspecialidadEnFechaEscenario2() {
-//
-//        var proximoLunes10Am = LocalDate.now()
-//                .with(TemporalAdjusters.next(DayOfWeek.FRIDAY))
-//                .atTime(10, 0);
-//
-//        var medico = registrarMedico("Felipe","fredi@email.com", "223487",Especialidad.CARDIOLOGIA);
-//
-//        var medicoLibre = medicoRepository.seleccionarMedicoPorEspecialidadEnFecha(Especialidad.CARDIOLOGIA, proximoLunes10Am);
-//
-//        assertThat(medicoLibre).isEqualTo(medico);
-//    }
+    @Test
+    @DisplayName("deberia retornar nulo cuando el medico se encuentre en consulta con otro paciente en ese horario")
+    void seleccionarMedicoPorEspecialidadEnFecha() {
+
+        //given(dado)
+        var proximoLunes10Am = LocalDate.now()
+                .with(TemporalAdjusters.next(DayOfWeek.MONDAY))
+                .atTime(10, 0);
+
+        var medico = registrarMedico("Yazmin","yaz@email.com", "443787",Especialidad.GINECOLOGIA);
+        var paciente = registrarPaciente("Alicia","ali@email.com", "456344");
+        registrarConsulta(medico, paciente, proximoLunes10Am);
+
+        //when(cuando)
+        var medicoLibre = medicoRepository.seleccionarMedicoPorEspecialidadEnFecha(Especialidad.GINECOLOGIA, proximoLunes10Am);
+
+        //then(entonces)
+        assertThat(medicoLibre).isNull();
+    }
+
+    @Test
+    @DisplayName("deberia retornar un medico cuando realice la consulta en la base de datos para ese horario")
+    void seleccionarMedicoPorEspecialidadEnFechaEscenario2() {
+
+        var proximoLunes10Am = LocalDate.now()
+                .with(TemporalAdjusters.next(DayOfWeek.FRIDAY))
+                .atTime(10, 0);
+
+        var medico = registrarMedico("Felipe","fredi@email.com", "223487",Especialidad.CARDIOLOGIA);
+
+        var medicoLibre = medicoRepository.seleccionarMedicoPorEspecialidadEnFecha(Especialidad.CARDIOLOGIA, proximoLunes10Am);
+
+        assertThat(medicoLibre).isEqualTo(medico);
+    }
     private void registrarConsulta(Medico medico, Paciente paciente, LocalDateTime fecha) {
         em.persist(new Consulta(medico, paciente, fecha));
     }
@@ -114,4 +113,8 @@ class IMedicoRepositoryTest {
                 "12"
         );
     }
+
+//    @Test
+//    void seleccionarMedicoPorEspecialidadEnFecha() {
+//    }
 }

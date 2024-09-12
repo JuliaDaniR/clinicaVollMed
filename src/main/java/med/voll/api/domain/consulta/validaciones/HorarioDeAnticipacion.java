@@ -11,6 +11,7 @@ import java.time.LocalDateTime;
 public class HorarioDeAnticipacion implements ValidadorDeConsultas{
 
     public void validar(DatosAgendarConsulta datos){
+
         var ahora = LocalDateTime.now();
         var horaDeConsulta = datos.fecha();
 

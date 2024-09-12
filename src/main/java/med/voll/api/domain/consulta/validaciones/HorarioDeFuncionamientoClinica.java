@@ -13,7 +13,7 @@ public class HorarioDeFuncionamientoClinica implements ValidadorDeConsultas{
         var domingo = DayOfWeek.SUNDAY.equals(datos.fecha().getDayOfWeek());
 
         var antesDeHoraApertura = datos.fecha().getHour()<7;
-        var despuesDeHoraCierre = datos.fecha().getHour()>19;
+        var despuesDeHoraCierre = datos.fecha().getHour()>18;
 
         if(domingo || antesDeHoraApertura || despuesDeHoraCierre){
             throw new ValidationException("El horario de atención de la clinica es de lunes a sabados de 07:00 a 19:00 hs");
