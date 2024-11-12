@@ -74,6 +74,15 @@ Algunas de las principales dependencias usadas en el proyecto incluyen:
 - `java-jwt` para gestión de JWT
 - `mysql-connector-j` para la conexión con MySQL
 
+## Implementación de Tests
+
+La API cuenta con una suite de tests para garantizar el correcto funcionamiento de las funcionalidades. Los tests se implementaron usando `JUnit` y `MockMvc` para verificar los escenarios de consultas en el controlador:
+
+- **Escenario 1**: Retorna un estado HTTP 400 cuando los datos ingresados son inválidos.
+- **Escenario 2**: Retorna un estado HTTP 200 cuando los datos ingresados son válidos y se genera correctamente la consulta.
+
+El controlador de consultas se somete a estas pruebas unitarias para verificar que la API responde con los códigos de estado adecuados y que el contenido JSON devuelto es el esperado.
+
 ## Instalación
 
 1. **Clonar el repositorio**:
