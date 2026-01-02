@@ -43,7 +43,7 @@ La API Voll.med permite:
 
 # 🛡️ Seguridad & Autenticación
 
-La aplicación implementa un sistema de autenticación robusto basado en **JWT + Refresh Tokens rotativos**, siguiendo las prácticas modernas empleadas por **Auth0, Okta y AWS Cognito**.
+La aplicación implementa un sistema de autenticación moderno y completo, desarrollado íntegramente con **Spring Security, JWT y Refresh Tokens** almacenados en base de datos.
 
 A continuación se describe el flujo completo de seguridad, los endpoints involucrados y las decisiones de diseño adoptadas.
 
