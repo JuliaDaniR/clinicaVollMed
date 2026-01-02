@@ -210,7 +210,6 @@ El sistema implementa autorización basada en roles (RBAC) inyectados directamen
 * **ROLE_ADMIN**: Acceso total a la administración y configuración.
 * **ROLE_MEDICO**: Gestión de historiales clínicos y consultas.
 * **ROLE_RECEPCIONISTA**: Gestión de agendas, citas y pacientes.
-* **ROLE_USUARIO**: Acceso básico al perfil de usuario final.
 
 ### Implementación técnica:
 Se utiliza la seguridad de Spring para interceptar las rutas:
