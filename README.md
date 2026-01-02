@@ -75,6 +75,7 @@ Se genera exclusivamente al iniciar sesión de forma exitosa.
 }
 
 ```
+---
 
 ## 🔁 2. Refresh Tokens Rotativos (7 días)
 
