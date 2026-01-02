@@ -70,7 +70,7 @@ Se genera exclusivamente al iniciar sesión de forma exitosa.
   "refresh_token": "<uuid_string>",
   "expires_in": 900,
   "token_type": "Bearer"
-} ```
+} 
 
 ## 🔁 2. Refresh Tokens Rotativos (7 días)
 
