@@ -64,7 +64,8 @@ Se genera exclusivamente al iniciar sesión de forma exitosa.
 **Endpoint:** `POST /auth/login`
 
 **Respuesta de ejemplo:**
-```json {
+```json
+{
   "access_token": "<jwt_string>",
   "refresh_token": "<uuid_string>",
   "expires_in": 900,
