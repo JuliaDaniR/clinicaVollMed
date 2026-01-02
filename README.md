@@ -64,13 +64,13 @@ Se genera exclusivamente al iniciar sesión de forma exitosa.
 **Endpoint:** `POST /auth/login`
 
 **Respuesta de ejemplo:**
-```json
-{
+```json {
   "access_token": "<jwt_string>",
   "refresh_token": "<uuid_string>",
   "expires_in": 900,
   "token_type": "Bearer"
 } 
+```
 
 ## 🔁 2. Refresh Tokens Rotativos (7 días)
 
@@ -106,6 +106,8 @@ Este endpoint es crítico para la experiencia de usuario, ya que permite obtener
 {
   "refreshToken": "<token_uuid_actual>"
 }
+```
+
 ### Respuesta del servidor (Response):
 
 ```json
@@ -113,6 +115,8 @@ Este endpoint es crítico para la experiencia de usuario, ya que permite obtener
   "accessToken": "<nuevo_access_token_jwt>",
   "refreshToken": "<nuevo_refresh_token_uuid>"
 }
+```
+
 ### Lógica interna de seguridad:
 
 * **✔ Validación:** El servidor comprueba que el token exista en la base de datos, pertenezca al usuario, no haya expirado y no esté marcado como `revoked`.
@@ -147,6 +151,8 @@ El usuario ingresa su correo y el sistema genera un vínculo temporal.
 {
   "email": "usuario@example.com"
 }
+```
+
 * Se genera un token de un solo uso.
 * Se envía por email un enlace con token.
 
@@ -160,6 +166,8 @@ El usuario utiliza el token recibido para establecer su nueva clave.
   "token": "<token_recibido>",
   "nuevaClave": "xxxxxxxx"
 }
+```
+
 ### Reglas de seguridad aplicadas:
 
 * **✔ Token con expiración**
@@ -200,6 +208,7 @@ Se utiliza la seguridad de Spring para interceptar las rutas:
 
 ```java
 .requestMatchers("/admin/**").hasRole("ADMIN")
+```
 
 ### Se personaliza el acceso por cada recurso específico:
 
