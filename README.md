@@ -39,6 +39,8 @@ La API Voll.med permite:
 | DELETE | `/consultas`         | Cancelar una consulta                 |
 | PUT    | `/consultas`         | Actualizar los datos de una consulta  |
 
+--- 
+
 # 🛡️ Seguridad & Autenticación
 
 La aplicación implementa un sistema de autenticación robusto basado en **JWT + Refresh Tokens rotativos**, siguiendo las prácticas modernas empleadas por **Auth0, Okta y AWS Cognito**.
@@ -70,7 +72,8 @@ Se genera exclusivamente al iniciar sesión de forma exitosa.
   "refresh_token": "<uuid_string>",
   "expires_in": 900,
   "token_type": "Bearer"
-} 
+}
+
 ```
 
 ## 🔁 2. Refresh Tokens Rotativos (7 días)
@@ -95,6 +98,7 @@ Además del access token, el backend genera un **Refresh Token** para permitir q
 | `revoked` | Boolean | Estado del token (true = invalidado). |
 
 ---
+
 ## 🔄 3. Endpoint de Refresh Token
 
 Este endpoint es crítico para la experiencia de usuario, ya que permite obtener un nuevo **Access Token** de forma transparente sin que el usuario tenga que volver a introducir sus credenciales (email y contraseña).
@@ -140,6 +144,7 @@ Este endpoint es crítico para la experiencia de usuario, ya que permite obtener
 * **✔ Acceso:** No requiere access token (igual que en sistemas como Auth0).
 
 ---
+
 ## ✉️ 5. Recuperación de Contraseña vía Email
 
 El sistema incluye un proceso seguro de recuperación de clave basado en tokens de un solo uso para garantizar la identidad del usuario.
@@ -176,6 +181,7 @@ El usuario utiliza el token recibido para establecer su nueva clave.
 * **✔ Notificación por email al usuario**
 
 ---
+
 ## ✉️ 6. Cambio de Email con Confirmación
 
 El usuario puede actualizar su dirección de correo electrónico, asegurando la validez de la nueva cuenta mediante un flujo de doble verificación.
@@ -194,6 +200,7 @@ El usuario puede actualizar su dirección de correo electrónico, asegurando la 
 `POST /usuario/confirmar-cambio-email`
 
 ---
+
 ## 🔑 7. Seguridad con Roles
 
 El sistema implementa autorización basada en roles (RBAC) inyectados directamente dentro del payload del JWT. Esto permite al backend y al frontend validar permisos sin consultas adicionales a la base de datos en cada petición.
@@ -219,6 +226,7 @@ Se utiliza la seguridad de Spring para interceptar las rutas:
 * **Gestión de usuarios:** Altas, bajas y modificaciones.
 
 ---
+
 ## 🧱 8. Filtro de Seguridad personalizado
 
 El sistema utiliza un filtro de seguridad basado en la clase `OncePerRequestFilter`, encargado de validar cada petición entrante antes de que llegue a los controladores.
@@ -233,6 +241,7 @@ El sistema utiliza un filtro de seguridad basado en la clase `OncePerRequestFilt
 > **Arquitectura Stateless:** El sistema es totalmente stateless; no se utilizan sesiones de servidor (`HttpSession`) ni cookies para almacenar el estado del usuario.
 
 ---
+
 ## 🔒 9. Protección de Endpoints
 
 El sistema divide las rutas en dos categorías principales para garantizar que solo el personal autorizado acceda a la información sensible.
@@ -252,6 +261,7 @@ Estos recursos son accesibles sin necesidad de un token:
 * **Restricción adicional:** Muchos de estos endpoints requieren, además, un rol específico (ADMIN, MEDICO, etc.) validado por el filtro de seguridad.
 
 ---
+
 ## 🛡️ 10. ¿Por qué este diseño es seguro?
 
 Este modelo de seguridad ha sido diseñado bajo estándares de grado industrial para mitigar los vectores de ataque más comunes:
@@ -266,6 +276,110 @@ Este modelo de seguridad ha sido diseñado bajo estándares de grado industrial 
 * **✔ Escalabilidad:** El diseño *Stateless* permite que la aplicación crezca entre múltiples instancias de servidor sin pérdida de datos de sesión.
 
 ---
+
+# ✉️ Envío de Emails (Mailtrap)
+
+La aplicación implementa un servicio de envío de emails para gestionar flujos de trabajo críticos de forma segura y eficiente.
+
+### Casos de uso:
+* **Cambio de email:** Verificación de la nueva dirección.
+* **Recuperación de contraseña:** Envío de tokens de un solo uso.
+* **Confirmación de acciones sensibles:** Notificaciones de seguridad.
+* **Notificaciones generales:** Comunicación directa con el usuario.
+
+Para permitir pruebas locales seguras y evitar el uso de proveedores reales en desarrollo, se utiliza **Mailtrap** en modo Sandbox.
+
+---
+
+## 📬 ¿Qué es Mailtrap?
+
+**Mailtrap** es un servicio que simula una bandeja de entrada para entornos de desarrollo y pruebas.
+
+* **Seguridad total:** Permite recibir emails sin enviar nada al mundo real (evita el spam accidental).
+* **Inspección técnica:** Permite ver contenido HTML, enlaces, adjuntos y headers.
+* **Validación de tokens:** Ideal para revisar que los enlaces de recuperación funcionen antes de ir a producción.
+* **Sin restricciones:** Evita bloqueos por límites de envío de Gmail, Outlook o Amazon SES.
+
+---
+
+## ⚙️ Configuración en el Proyecto
+
+El sistema utiliza el protocolo **SMTP** para el envío de correos.
+
+### Variables de Entorno
+Debes configurar los siguientes valores en tu archivo `.env` o `application.properties`:
+
+```properties
+MAIL_HOST=sandbox.smtp.mailtrap.io
+MAIL_PORT=587
+MAIL_USERNAME=<tu-user-de-mailtrap>
+MAIL_PASSWORD=<tu-pass-de-mailtrap>
+MAIL_FROM=no-reply@vollmed.com
+```
+---
+
+### ⚙️ Configuración del Bean (Spring Boot)
+
+El proyecto usa **Jakarta Mail** con las siguientes propiedades vinculadas en el archivo `application.properties`:
+
+```properties
+spring.mail.host=${MAIL_HOST}
+spring.mail.port=${MAIL_PORT}
+spring.mail.username=${MAIL_USERNAME}
+spring.mail.password=${MAIL_PASSWORD}
+spring.mail.properties.mail.smtp.auth=true
+spring.mail.properties.mail.smtp.starttls.enable=true
+```
+
+### 📨 Servicio de Envío de Emails
+
+Toda la lógica se encapsula en un único servicio reutilizable:
+
+```java
+@Service
+@RequiredArgsConstructor
+public class EmailService {
+
+    private final JavaMailSender mailSender;
+
+    public void enviarEmail(String to, String subject, String html) {
+        try {
+            MimeMessage message = mailSender.createMimeMessage();
+            MimeMessageHelper helper = new MimeMessageHelper(message, true, "UTF-8");
+
+            helper.setTo(to);
+            helper.setSubject(subject);
+            helper.setText(html, true); // true indica que es contenido HTML
+
+            mailSender.send(message);
+        } catch (Exception e) {
+            throw new RuntimeException("Error enviando email", e);
+        }
+    }
+}
+```
+
+### ✉️ Emails Implementados
+
+* **✔ Recuperación de contraseña:** Envía un token y un enlace hacia el endpoint `/auth/reset-password`.
+* **✔ Cambio de email:** Envía un enlace de confirmación al email actual para validar el acceso en `/usuario/confirmar-cambio-email`.
+* **✔ Notificación de seguridad:** Informa al usuario inmediatamente después de un cambio exitoso de contraseña.
+
+---
+
+### 📥 Cómo probar los emails
+
+1. **Crear una cuenta** en Mailtrap.
+2. **Ir a Inbox** → SMTP Settings.
+3. **Copiar las credenciales** SMTP Sandbox.
+4. **Pegar los valores** en tu archivo `.env` o `application.properties`.
+5. **Ejecutar los flujos** (forgot password, etc.) desde Swagger o Postman.
+6. **Revisar los correos** entrantes en tu bandeja de entrada virtual de Mailtrap.
+
+> [!NOTE]  
+> **Privacidad:** Nada se envía a direcciones reales. Solo tú puedes ver los mensajes de prueba en tu panel de Mailtrap.
+
+--- 
 
 ## Documentación en Swagger
 
