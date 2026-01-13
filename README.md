@@ -102,7 +102,9 @@ Todas las entidades críticas heredan de `BaseAuditable`, registrando automátic
 
 ### ✔ Flyway Migrations
 Estructura de base de datos totalmente **versionada, trazable y reproducible** en cualquier entorno.
+
 ---
+
 ## 🔍 Módulos del Dominio
 
 ### 👨‍⚕️ Médicos
