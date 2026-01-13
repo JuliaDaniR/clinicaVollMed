@@ -199,7 +199,8 @@ boolean esMedico = paciente.getConsultas()
 ---
 ## ✅ 1️⃣ Diagrama de Arquitectura General
 
-```flowchart LR
+```mermaid
+flowchart LR
     A[Cliente Web / Swagger / Postman] -->|HTTP/HTTPS| B[API Spring Boot]
 
     subgraph Seguridad
