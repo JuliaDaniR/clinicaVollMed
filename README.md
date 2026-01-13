@@ -199,8 +199,7 @@ boolean esMedico = paciente.getConsultas()
 ---
 ## ✅ 1️⃣ Diagrama de Arquitectura General
 
-```mermaid
-flowchart LR
+```flowchart LR
     A[Cliente Web / Swagger / Postman] -->|HTTP/HTTPS| B[API Spring Boot]
 
     subgraph Seguridad
@@ -213,7 +212,7 @@ flowchart LR
     S3 --> S1
     S3 --> S2
 
-    subgraph Backend (Módulos)
+    subgraph Backend_Modulos [Backend Módulos]
         M1[Pacientes]
         M2[Médicos]
         M3[Turnos y Consultas]
@@ -221,7 +220,7 @@ flowchart LR
         M5[Notas Clínicas]
         M6[Recetas Médicas]
         M7[Usuarios y Roles]
-        M8[Email Service (Mailtrap)]
+        M8[Email Service Mailtrap]
     end
 
     B --> M1
@@ -233,7 +232,7 @@ flowchart LR
     B --> M7
     B --> M8
 
-    subgraph "Base de Datos MySQL"
+    subgraph DB [Base de Datos MySQL]
         DB1[(usuarios)]
         DB2[(roles)]
         DB3[(pacientes)]
@@ -257,6 +256,7 @@ flowchart LR
 
     M8 -->|SMTP| X[Mailtrap Sandbox]
 ```
+---
 ## ✅ 2️⃣ Diagrama de Arquitectura por Capas (Clean + DDD Light)
 
 ```mermaid
@@ -295,6 +295,7 @@ C1 --> S3
 R1 --> D1
 R3 --> C1
 ```
+---
 ## ✅ 3️⃣ Modelo Entidad–Relación (ERD Completo)
 
 ```mermaid
@@ -317,6 +318,7 @@ erDiagram
     MEDICO ||--o{ TURNO_DISPONIBLE : "configura"
     MEDICO ||--o{ CONFIGURACION_HORARIA : "define"
 ```
+---
 ## ✅ 4️⃣ Secuencia JWT + Refresh Tokens Rotativos
 
 ```mermaid
@@ -342,6 +344,7 @@ sequenceDiagram
     S-->>A: nuevo accessToken + nuevo refreshToken
     A-->>C: nuevo par rotado
 ```
+---
 ---
 
 # 🛡️ Seguridad & Autenticación
