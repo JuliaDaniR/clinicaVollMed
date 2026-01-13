@@ -1,7 +1,7 @@
 package med.voll.api.domain.consulta.validaciones;
 
 import jakarta.validation.ValidationException;
-import med.voll.api.domain.consulta.DatosAgendarConsulta;
+import med.voll.api.domain.consulta.dto.DatosAgendarConsulta;
 import org.springframework.stereotype.Component;
 
 import java.time.Duration;

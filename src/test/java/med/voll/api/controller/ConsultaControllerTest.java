@@ -1,9 +1,10 @@
 package med.voll.api.controller;
 
-import med.voll.api.domain.consulta.AgendaDeConsultaService;
-import med.voll.api.domain.consulta.DatosAgendarConsulta;
-import med.voll.api.domain.consulta.DatosDetalleConsulta;
-import med.voll.api.domain.medico.Especialidad;
+import med.voll.api.domain.consulta.service.AgendaDeConsultaService;
+import med.voll.api.domain.consulta.dto.DatosAgendarConsulta;
+import med.voll.api.domain.consulta.dto.DatosDetalleConsulta;
+import med.voll.api.domain.medico.model.enumerator.Especialidad;
+import med.voll.api.infra.errores.ApiResponseDTO;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -23,7 +24,6 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
-
 @SpringBootTest
 @AutoConfigureMockMvc
 @AutoConfigureJsonTesters
@@ -33,51 +33,82 @@ class ConsultaControllerTest {
     private MockMvc mvc;
 
     @Autowired
-    private JacksonTester<DatosAgendarConsulta> agendarConsultaJacksonTester;
+    private JacksonTester<DatosAgendarConsulta> agendarConsultaJson;
 
     @Autowired
-    private JacksonTester<DatosDetalleConsulta> datosDetalleConsultaJacksonTester;
+    private JacksonTester<ApiResponseDTO> apiResponseJson;
 
     @MockBean
-    private AgendaDeConsultaService agendaDeConsultaService;
+    private AgendaDeConsultaService consultaService;
 
+    // ==========================================================
+    // 1. Escenario: datos inválidos → 400
+    // ==========================================================
     @Test
-    @DisplayName("Deberia retornar estado http 400 cuando los datos ingresados sean invalidos")
-    @WithMockUser //Esta anotation sirve para simular que el usuario ya esta logueado
+    @DisplayName("Debe retornar HTTP 400 cuando los datos de la consulta sean inválidos")
+    @WithMockUser
     void agendarEscenario1() throws Exception {
 
-        //given
-      var response = mvc.perform(post("/consultas"))
-              .andReturn().getResponse();
+        // GIVEN (request vacío => inválido)
+        var response = mvc.perform(
+                post("/consultas")
+                        .contentType(MediaType.APPLICATION_JSON)
+        ).andReturn().getResponse();
 
-        //then
-        assertThat(response.getStatus()).isEqualTo(HttpStatus.BAD_REQUEST.value());
+        // THEN
+        assertThat(response.getStatus())
+                .isEqualTo(HttpStatus.BAD_REQUEST.value());
     }
 
+    // ==========================================================
+    // 2. Escenario: datos válidos → 201 con ApiResponseDTO
+    // ==========================================================
     @Test
-    @DisplayName("deberia retornar estado http 200 cuando los datos ingresados son validos")
+    @DisplayName("Debe retornar HTTP 201 cuando los datos son válidos")
     @WithMockUser
     void agendarEscenario2() throws Exception {
 
-        // given
+        // GIVEN
         var fecha = LocalDateTime.now().plusHours(5);
-        var especialidad = Especialidad.CARDIOLOGIA;
-        var datosDetalle = new DatosDetalleConsulta(null, 1L, 2L,fecha);
 
-        when(agendaDeConsultaService.agendar(any())).thenReturn(datosDetalle);
+        var requestDTO = new DatosAgendarConsulta(
+                2L,           // idPaciente
+                1L,           // idMedico
+                Especialidad.CARDIOLOGIA,
+                fecha
+        );
 
-        var response = mvc.perform(post("/consultas")
-                .contentType(MediaType.APPLICATION_JSON)
-                .content(agendarConsultaJacksonTester
-                        .write(new DatosAgendarConsulta( null,1L, 2L,fecha, especialidad)).getJson())
+        var detalleConsulta = new DatosDetalleConsulta(
+                100L,
+                1L,
+                2L,
+                fecha,
+                false,
+                null
+        );
+
+        var respuestaService = new ApiResponseDTO(
+                true,
+                "Consulta agendada correctamente",
+                detalleConsulta,
+                HttpStatus.CREATED
+        );
+
+        when(consultaService.agendarConsulta(any()))
+                .thenReturn(respuestaService);
+
+        // WHEN
+        var response = mvc.perform(
+                post("/consultas")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(agendarConsultaJson.write(requestDTO).getJson())
         ).andReturn().getResponse();
 
-        var datos = datosDetalleConsultaJacksonTester
-                .write(datosDetalle).getJson();
+        // THEN
+        assertThat(response.getStatus())
+                .isEqualTo(HttpStatus.CREATED.value());
 
-        // then
-        assertThat(response.getStatus()).isEqualTo(HttpStatus.OK.value());
-        assertThat(response.getContentAsString()).isEqualTo(datos);
+        assertThat(response.getContentAsString())
+                .isEqualTo(apiResponseJson.write(respuestaService).getJson());
     }
-
 }

@@ -10,7 +10,7 @@ public record DatosDireccion(
         @NotBlank
         String numero,
         @NotBlank
-        String distrito,
+        String provincia,
         @NotBlank
-        String complemento) {
+        String pais) {
 }

@@ -1,126 +1,166 @@
 package med.voll.api.controller;
-// Query para eliminar migracion en caso de haberme olvidado de parar el programa
-// DELETE FROM flyway_schema_history WHERE version = '1';(cambiar por el numero de version)
-// delete from flyway_schema_history where success = 0;(o esta para eliminar la que ocurrio el error)
 
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
-import jakarta.transaction.Transactional;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
-import med.voll.api.domain.direccion.DatosDireccion;
-import med.voll.api.domain.medico.DatosListadoMedico;
-import med.voll.api.domain.medico.DatosRegistroMedico;
-import med.voll.api.domain.medico.DatosRespuestaMedico;
-import med.voll.api.domain.medico.Medico;
-import med.voll.api.repository.IMedicoRepository;
-import org.springframework.beans.factory.annotation.Autowired;
+import lombok.RequiredArgsConstructor;
+import med.voll.api.domain.medico.dto.*;
+import med.voll.api.domain.medico.model.Medico;
+import med.voll.api.domain.medico.service.MedicoService;
+import med.voll.api.domain.usuarios.model.Usuario;
+import med.voll.api.infra.errores.ApiResponseDTO;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
-import org.springframework.data.web.PageableDefault;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.util.UriComponentsBuilder;
 
 import java.net.URI;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/medicos")
+@RequiredArgsConstructor
 @SecurityRequirement(name = "bearer-key")
+@Tag(name = "Médicos", description = "Gestión completa de médicos del sistema")
 public class MedicoController {
 
-    @Autowired
-    private IMedicoRepository medicoRepo;
+    private final MedicoService service;
 
+    // ==========================================================
+    // 1. Registrar médico (Admin / Recepción)
+    // ==========================================================
+    @Operation(
+            summary = "Registrar un nuevo médico",
+            description = "Crea un médico junto con su usuario asociado (ROLE_MEDICO). "
+                    + "Accesible solo por Admin o Recepción."
+    )
+    @ApiResponses({
+            @ApiResponse(responseCode = "201", description = "Médico registrado correctamente"),
+            @ApiResponse(responseCode = "400", description = "Datos inválidos")
+    })
     @PostMapping
-    public ResponseEntity<DatosRespuestaMedico> registrarMedico(@RequestBody @Valid DatosRegistroMedico datosRegistroMedico, UriComponentsBuilder uriComponentsBuilder) {
-
-        Medico medico = medicoRepo.save(new Medico(datosRegistroMedico));
-        //El metodo post debe return 201 Ceated
-        //Retornar la url donde encontrar al medico
-
-        //Es buena practica utilizar un dto para no retornar la entidad medico
-        DatosRespuestaMedico datosRespuestaMedico = new DatosRespuestaMedico(medico.getId(),
-                medico.getNombre(),
-                medico.getEmail(),
-                medico.getTelefono(),
-                medico.getDocumento(),
-                medico.getEspecialidad().toString(),
-                new DatosDireccion(
-                        medico.getDireccion().getCalle(),
-                        medico.getDireccion().getDistrito(),
-                        medico.getDireccion().getCiudad(),
-                        medico.getDireccion().getNumero(),
-                        medico.getDireccion().getComplemento()));
-
-        //Crear la url dinamicamente donde el recurso va a ser encontrado
-        URI url = uriComponentsBuilder.path("/medicos/{id}").buildAndExpand(medico.getId()).toUri();
-
-        return ResponseEntity.created(url).body(datosRespuestaMedico);
-
+    public ResponseEntity<ApiResponseDTO> registrar(
+            @Valid @RequestBody DatosRegistroMedico dto,
+            UriComponentsBuilder uriBuilder
+    ) {
+        ApiResponseDTO respuesta = service.registrar(dto);
+        return ResponseEntity.status(respuesta.status()).body(respuesta);
     }
 
-    @GetMapping                                                   //se utiliza para definir valores por defecto
-    public ResponseEntity<Page<DatosListadoMedico>> listarMedicos(@PageableDefault(size = 3) Pageable paginacion) {
-
-        //return medicoRepo.findAll(paginacion).map(DatosListadoMedico::new);
-        return ResponseEntity.ok().body(medicoRepo.findByActivoTrue(paginacion).map(DatosListadoMedico::new));
+    // ==========================================================
+    // 2. Actualizar médico (Admin / Recepción)
+    // ==========================================================
+    @Operation(
+            summary = "Actualizar médico por ID",
+            description = "Actualiza los datos personales y profesionales de un médico existente."
+    )
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "Médico actualizado"),
+            @ApiResponse(responseCode = "404", description = "Médico no encontrado")
+    })
+    @PutMapping("/{id}")
+    public ResponseEntity<ApiResponseDTO> actualizar(
+            @PathVariable Long id,
+            @Valid @RequestBody DatosActualizarMedico dto,
+            @RequestHeader("email") String emailActual
+    ) {
+        ApiResponseDTO respuesta = service.actualizarPerfil(id, dto, emailActual);
+        return ResponseEntity.status(respuesta.status()).body(respuesta);
     }
 
-    @PutMapping
-    @Transactional
-    public ResponseEntity actualizarMedicos(@RequestBody @Valid DatosRegistroMedico.DatosActualizarMedico datosActualizarMedico) {
-        Medico medico = medicoRepo.getReferenceById(datosActualizarMedico.id());
-        medico.actualizarDatos(datosActualizarMedico);
-
-        return ResponseEntity.ok(new DatosRespuestaMedico(
-                medico.getId(),
-                medico.getNombre(),
-                medico.getEmail(),
-                medico.getTelefono(),
-                medico.getDocumento(),
-                medico.getEspecialidad().toString(),
-                new DatosDireccion(
-                        medico.getDireccion().getCalle(),
-                        medico.getDireccion().getDistrito(),
-                        medico.getDireccion().getCiudad(),
-                        medico.getDireccion().getNumero(),
-                        medico.getDireccion().getComplemento())));
+    // ==========================================================
+    // 3. Actualizar perfil propio (solo Médico)
+    // ==========================================================
+    @Operation(
+            summary = "Actualizar mi propio perfil",
+            description = "Permite al médico autenticado modificar su información personal y profesional."
+    )
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "Perfil actualizado"),
+            @ApiResponse(responseCode = "403", description = "Operación no permitida")
+    })
+    @PutMapping("/mi-perfil")
+    public ResponseEntity<ApiResponseDTO> actualizarMiPerfil(
+            @Valid @RequestBody DatosActualizarPerfilMedico dto,
+            @RequestHeader("email") String emailActual
+    ) {
+        ApiResponseDTO respuesta = service.actualizarMiPerfil(dto, emailActual);
+        return ResponseEntity.status(respuesta.status()).body(respuesta);
     }
 
+    // ==========================================================
+    // 4. Desactivar médico (Admin)
+    // ==========================================================
+    @Operation(
+            summary = "Desactivar médico",
+            description = "Desactiva al médico y su usuario asociado. Solo Admin."
+    )
+    @ApiResponses({
+            @ApiResponse(responseCode = "204", description = "Médico desactivado"),
+            @ApiResponse(responseCode = "404", description = "Médico no encontrado")
+    })
     @DeleteMapping("/{id}")
-    @Transactional
-    public ResponseEntity eliminarMedico(@PathVariable Long id) {
-        Medico medico = medicoRepo.getReferenceById(id);
-        medico.desactivarMedico();
-
-        return ResponseEntity.noContent().build();
+    public ResponseEntity<ApiResponseDTO> desactivar(
+            @PathVariable Long id,
+            @AuthenticationPrincipal Usuario auth
+    ) {
+        ApiResponseDTO respuesta = service.desactivar(id, auth);
+        return ResponseEntity.status(respuesta.status()).body(respuesta);
     }
 
+    // ==========================================================
+    // 5. Activar médico (Admin)
+    // ==========================================================
+    @Operation(
+            summary = "Activar médico",
+            description = "Activa nuevamente al médico y su usuario asociado. Solo Admin."
+    )
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "Médico activado"),
+            @ApiResponse(responseCode = "404", description = "Médico no encontrado")
+    })
+    @PatchMapping("/{id}/activar")
+    public ResponseEntity<ApiResponseDTO> activar(
+            @PathVariable Long id,
+            @AuthenticationPrincipal Usuario auth
+    ) {
+        ApiResponseDTO respuesta = service.activar(id, auth);
+        return ResponseEntity.status(respuesta.status()).body(respuesta);
+    }
+
+    // ==========================================================
+    // 6. Obtener médico por ID
+    // ==========================================================
+    @Operation(
+            summary = "Obtener médico",
+            description = "Devuelve la información completa de un médico por su ID."
+    )
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "Datos obtenidos"),
+            @ApiResponse(responseCode = "404", description = "Médico no encontrado")
+    })
     @GetMapping("/{id}")
-    public ResponseEntity<DatosRespuestaMedico> retornarDatosMedicos(@PathVariable Long id) {
+    public ResponseEntity<ApiResponseDTO> obtener(@PathVariable Long id) {
+        ApiResponseDTO respuesta = service.obtener(id);
+        return ResponseEntity.status(respuesta.status()).body(respuesta);
+    }
 
-        Medico medico = medicoRepo.getReferenceById(id);
-
-        var datosMedicos = new DatosRespuestaMedico(
-                medico.getId(),
-                medico.getNombre(),
-                medico.getEmail(),
-                medico.getTelefono(),
-                medico.getDocumento(),
-                medico.getEspecialidad().toString(),
-                new DatosDireccion(
-                        medico.getDireccion().getCalle(),
-                        medico.getDireccion().getDistrito(),
-                        medico.getDireccion().getCiudad(),
-                        medico.getDireccion().getNumero(),
-                        medico.getDireccion().getComplemento()));
-
-        return ResponseEntity.ok(datosMedicos);
+    // ==========================================================
+    // 7. Listar médicos
+    // ==========================================================
+    @Operation(
+            summary = "Listar médicos",
+            description = "Devuelve un listado paginado de médicos registrados."
+    )
+    @ApiResponse(responseCode = "200", description = "Listado obtenido")
+    @GetMapping
+    public ResponseEntity<ApiResponseDTO> listar(Pageable pageable) {
+        ApiResponseDTO respuesta = service.listar(pageable);
+        return ResponseEntity.status(respuesta.status()).body(respuesta);
     }
 }
-
-
-//Por lo tanto, en solicitudes que usen paginación,
-// debemos usar estos nombres que fueron definidos.
-// Por ejemplo, para listar los médicos de nuestra API trayendo solo 5 registros de la página 2,
-// ordenados por email y en orden descendente, la URL de solicitud debe ser:
-//http://localhost:8080/medicos?tamano=5&pagina=1&orden=email,desc

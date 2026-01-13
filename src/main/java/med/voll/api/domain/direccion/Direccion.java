@@ -16,23 +16,23 @@ public class Direccion {
     private String calle;
     private String ciudad;
     private String numero;
-    private String distrito;
-    private String complemento;
+    private String provincia;
+    private String pais;
 
     public Direccion(DatosDireccion direccion) {
         this.calle = direccion.calle();
         this.ciudad = direccion.ciudad();
         this.numero = direccion.numero();
-        this.distrito = direccion.distrito();
-        this.complemento = direccion.complemento();
+        this.provincia = direccion.provincia();
+        this.pais = direccion.pais();
     }
 
     public Direccion actualizarDatos(DatosDireccion direccion) {
         this.calle = direccion.calle();
         this.ciudad = direccion.ciudad();
         this.numero = direccion.numero();
-        this.distrito = direccion.distrito();
-        this.complemento = direccion.complemento();
+        this.provincia = direccion.provincia();
+        this.pais = direccion.pais();
         return this;
     }
 }

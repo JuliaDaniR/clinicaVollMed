@@ -1,13 +1,18 @@
 CREATE TABLE pacientes (
-    id BIGINT NOT NULL AUTO_INCREMENT,
-    nombre VARCHAR(100) NOT NULL,
-    email VARCHAR(100) NOT NULL UNIQUE,
-    documento_identidad VARCHAR(14) NOT NULL UNIQUE,
-    telefono VARCHAR(20) NOT NULL,
-    calle VARCHAR(100) NOT NULL,
-    ciudad VARCHAR(100) NOT NULL,
+    id BIGINT PRIMARY KEY AUTO_INCREMENT,
+
+    usuario_id BIGINT NOT NULL UNIQUE,
+
+    activo TINYINT(1) NOT NULL DEFAULT 1,
+
+    calle VARCHAR(100),
     numero VARCHAR(20),
-    distrito VARCHAR(100) NOT NULL,
-    complemento VARCHAR(100),
-    PRIMARY KEY (id)
+    ciudad VARCHAR(100),
+    provincia VARCHAR(100),
+    pais VARCHAR(100),
+
+    fecha_alta DATE NOT NULL,
+
+    CONSTRAINT fk_paciente_usuario
+        FOREIGN KEY (usuario_id) REFERENCES usuarios(id)
 );

@@ -2,47 +2,64 @@ package med.voll.api.infra.errores;
 
 import jakarta.persistence.EntityNotFoundException;
 import jakarta.validation.ValidationException;
+import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 
+import java.util.Map;
 @RestControllerAdvice
 public class TratadorDeErrores {
+
+
+    // ❌ Error 404 – Recurso no encontrado
     @ExceptionHandler(EntityNotFoundException.class)
-//Le aviso que tipo de excepcion tiene que atrapar y transformar en 404 NotFound
-    public ResponseEntity tratarError404() {
-        return ResponseEntity.notFound().build();
+    public ResponseEntity<ApiResponseDTO> tratarError404() {
+        return buildError(HttpStatus.NOT_FOUND, "Recurso no encontrado", null);
     }
 
-    @ExceptionHandler(MethodArgumentNotValidException.class)//Tratar errores de campos incompletos o erroneos
-    public ResponseEntity tratarError400(MethodArgumentNotValidException e) {
 
-        //Accedo a la lista de errores lanzados por la excepcion
+    // ❌ Error 400 – Validación de campos (Bean Validation)
+    @ExceptionHandler(MethodArgumentNotValidException.class)
+    public ResponseEntity<ApiResponseDTO> tratarError400(MethodArgumentNotValidException e) {
+
         var errores = e.getFieldErrors().stream()
-                .map(DatosErrorValidacion::new).toList();
+                .map(err -> Map.of(
+                        "campo", err.getField(),
+                        "error", err.getDefaultMessage()
+                ))
+                .toList();
 
-        return ResponseEntity.badRequest().body(errores);
+        return buildError(HttpStatus.BAD_REQUEST, "Errores de validación", errores);
     }
 
-    @ExceptionHandler(ValidacionIntegridad.class)//Tratar errores de campos incompletos o erroneos
-    public ResponseEntity errorHandlerValidaciones(Exception e) {
 
-        return ResponseEntity.badRequest().body(e.getMessage());
+    // ❌ Error 400 – Duplicados / integridad
+    @ExceptionHandler(DataIntegrityViolationException.class)
+    public ResponseEntity<ApiResponseDTO> tratarErrorDuplicados(DataIntegrityViolationException e) {
+        return buildError(HttpStatus.BAD_REQUEST, "Registro duplicado o datos inválidos", null);
     }
 
-    @ExceptionHandler(ValidationException.class)//Tratar errores de campos incompletos o erroneos
-    public ResponseEntity errorHandlerValidacionesDeNegocio(Exception e) {
 
-        return ResponseEntity.badRequest().body(e.getMessage());
+    // ❌ Error 400 – Reglas de negocio (ValidacionIntegridad y ValidationException)
+    @ExceptionHandler({ ValidacionIntegridad.class, ValidationException.class })
+    public ResponseEntity<ApiResponseDTO> errorHandlerReglasNegocio(Exception e) {
+
+        return buildError(
+                HttpStatus.BAD_REQUEST,
+                e.getMessage(),
+                null
+        );
     }
 
-    private record DatosErrorValidacion(String campo, String error) {
 
-        //Realizo un constructor para que me muestre solo el campo del error y el mensaje
-        public DatosErrorValidacion(FieldError error) {
-            this(error.getField(), error.getDefaultMessage());
-        }
+    // 🔧 Helper para unificar la respuesta
+    private ResponseEntity<ApiResponseDTO> buildError(HttpStatus status, String msg, Object data) {
+        return ResponseEntity.status(status).body(
+                new ApiResponseDTO(false, msg, data, status)
+        );
     }
 }
+

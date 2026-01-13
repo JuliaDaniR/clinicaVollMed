@@ -1,76 +1,141 @@
 package med.voll.api.controller;
 
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
-import med.voll.api.domain.direccion.DatosDireccion;
-import med.voll.api.domain.medico.DatosListadoMedico;
-import med.voll.api.domain.medico.DatosRegistroMedico;
-import med.voll.api.domain.medico.DatosRespuestaMedico;
-import med.voll.api.domain.medico.Medico;
-import med.voll.api.domain.paciente.DatosActualizacionPaciente;
-import med.voll.api.domain.paciente.DatosListadoPaciente;
-import med.voll.api.domain.paciente.DatosDetalladoPaciente;
-import med.voll.api.domain.paciente.Paciente;
-import med.voll.api.domain.paciente.DatosRegistroPaciente;
-import jakarta.transaction.Transactional;
+import io.swagger.v3.oas.annotations.tags.Tag;
+import lombok.RequiredArgsConstructor;
+import med.voll.api.domain.paciente.dto.DatosListadoPaciente;
+import med.voll.api.domain.paciente.dto.DatosRespuestaPaciente;
+import med.voll.api.domain.paciente.model.Paciente;
+import med.voll.api.domain.paciente.dto.DatosRegistroPaciente;
 import jakarta.validation.Valid;
-import med.voll.api.repository.IMedicoRepository;
-import med.voll.api.repository.IPacienteRepository;
-import org.springframework.beans.factory.annotation.Autowired;
+import med.voll.api.domain.paciente.service.PacienteService;
+import med.voll.api.domain.usuarios.model.Usuario;
+import med.voll.api.infra.errores.ApiResponseDTO;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
-import org.springframework.data.web.PageableDefault;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.util.UriComponentsBuilder;
 
 import java.net.URI;
 
 @RestController
-@RequestMapping("pacientes")
+@RequestMapping("/pacientes")
+@RequiredArgsConstructor
 @SecurityRequirement(name = "bearer-key")
+@Tag(name = "Pacientes", description = "Gestión completa de pacientes del sistema")
 public class PacienteController {
 
-    @Autowired
-    private IPacienteRepository repository;
+    private final PacienteService service;
 
+    // ==========================================================
+    // 1. Registrar Paciente
+    // ==========================================================
+    @Operation(
+            summary = "Registrar un nuevo paciente",
+            description = "Crea un paciente junto con su usuario asociado (ROLE_PACIENTE)."
+    )
+    @ApiResponses({
+            @ApiResponse(responseCode = "201", description = "Paciente registrado correctamente"),
+            @ApiResponse(responseCode = "400", description = "Datos inválidos")
+    })
     @PostMapping
-    @Transactional
-    public ResponseEntity<DatosDetalladoPaciente> registrar(@RequestBody @Valid DatosRegistroPaciente datos, UriComponentsBuilder uriBuilder) {
-        var paciente = repository.save(new Paciente(datos));
-
-        DatosDetalladoPaciente datosDetalladoPaciente = new DatosDetalladoPaciente(paciente);
-
-        var uri = uriBuilder.path("/pacientes/{id}").buildAndExpand(paciente.getId()).toUri();
-        return ResponseEntity.created(uri).body(datosDetalladoPaciente);
+    public ResponseEntity<ApiResponseDTO> registrar(
+            @Valid @RequestBody DatosRegistroPaciente dto,
+            UriComponentsBuilder uriBuilder
+    ) {
+        ApiResponseDTO respuesta = service.registrar(dto);
+        return ResponseEntity.status(respuesta.status()).body(respuesta);
     }
 
-    @GetMapping
-    public ResponseEntity<Page<DatosListadoPaciente>> listar(@PageableDefault(size = 3) Pageable paginacion) {
-        var page = repository.findAllByActivoTrue(paginacion).map(DatosListadoPaciente::new);
-        return ResponseEntity.ok(page);
+    // ==========================================================
+    // 2. Actualizar Paciente
+    // ==========================================================
+    @Operation(
+            summary = "Actualizar paciente",
+            description = "Modifica los datos básicos del paciente."
+    )
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "Paciente actualizado"),
+            @ApiResponse(responseCode = "404", description = "Paciente no encontrado")
+    })
+    @PutMapping("/{id}")
+    public ResponseEntity<ApiResponseDTO> actualizar(
+            @PathVariable Long id,
+            @Valid @RequestBody DatosRegistroPaciente.DatosActualizarPaciente dto,
+            @RequestHeader("email") String emailActual
+    ) {
+        ApiResponseDTO respuesta = service.actualizar(id, dto, emailActual);
+        return ResponseEntity.status(respuesta.status()).body(respuesta);
     }
 
-    @PutMapping
-    @Transactional
-    public ResponseEntity<DatosDetalladoPaciente> actualizar(@RequestBody @Valid DatosRegistroPaciente.DatosActualizarPaciente datos) {
-        var paciente = repository.getReferenceById(datos.id());
-        paciente.actualizarInformacion(datos);
-
-        return ResponseEntity.ok(new DatosDetalladoPaciente(paciente));
-    }
-
+    // ==========================================================
+    // 3. Desactivar Paciente
+    // ==========================================================
+    @Operation(
+            summary = "Desactivar paciente",
+            description = "Desactiva al paciente y su usuario asociado. Solo Admin/Recepción."
+    )
+    @ApiResponses({
+            @ApiResponse(responseCode = "204", description = "Paciente desactivado"),
+            @ApiResponse(responseCode = "404", description = "Paciente no encontrado")
+    })
     @DeleteMapping("/{id}")
-    @Transactional
-    public ResponseEntity<DatosDetalladoPaciente> eliminar(@PathVariable Long id) {
-        var paciente = repository.getReferenceById(id);
-        paciente.eliminar();
-
-        return ResponseEntity.noContent().build();
+    public ResponseEntity<ApiResponseDTO> desactivar(
+            @PathVariable Long id,
+            @AuthenticationPrincipal Usuario auth
+    ) {
+        ApiResponseDTO respuesta = service.desactivar(id, auth);
+        return ResponseEntity.status(respuesta.status()).body(respuesta);
     }
 
+    // ==========================================================
+    // 4. Activar Paciente
+    // ==========================================================
+    @Operation(
+            summary = "Activar paciente",
+            description = "Activa nuevamente al paciente y su usuario asociado."
+    )
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "Paciente activado"),
+            @ApiResponse(responseCode = "404", description = "Paciente no encontrado")
+    })
+    @PatchMapping("/{id}/activar")
+    public ResponseEntity<ApiResponseDTO> activar(
+            @PathVariable Long id,
+            @AuthenticationPrincipal Usuario auth
+    ) {
+        ApiResponseDTO respuesta = service.activar(id, auth);
+        return ResponseEntity.status(respuesta.status()).body(respuesta);
+    }
+
+    // ==========================================================
+    // 5. Obtener Paciente por ID
+    // ==========================================================
+    @Operation(
+            summary = "Obtener paciente",
+            description = "Devuelve los datos completos del paciente solicitado."
+    )
     @GetMapping("/{id}")
-    public ResponseEntity detallar(@PathVariable Long id) {
-        var paciente = repository.getReferenceById(id);
-        return ResponseEntity.ok(new DatosDetalladoPaciente(paciente));
+    public ResponseEntity<ApiResponseDTO> obtener(@PathVariable Long id) {
+        ApiResponseDTO resp = service.obtener(id);
+        return ResponseEntity.status(resp.status()).body(resp);
+    }
+
+    // ==========================================================
+    // 6. Listar Pacientes
+    // ==========================================================
+    @Operation(
+            summary = "Listar pacientes",
+            description = "Devuelve un listado paginado de pacientes."
+    )
+    @GetMapping
+    public ResponseEntity<ApiResponseDTO> listar(Pageable pageable) {
+        ApiResponseDTO resp = service.listar(pageable);
+        return ResponseEntity.status(resp.status()).body(resp);
     }
 }
