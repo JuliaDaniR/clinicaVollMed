@@ -7,6 +7,7 @@ Construido con **Spring Boot**, **Spring Security (JWT + Refresh Tokens)**, **JP
 ## 📚 Índice
 
 * Descripción General
+* Decisiones Técnicas y Justificación
 * Arquitectura del Sistema
 * Módulos del Dominio
     * Médicos
@@ -38,6 +39,38 @@ VollMed API es una plataforma clínica orientada a resolver necesidades reales d
 * ✔ **Documentación completa** con OpenAPI.
 * ✔ **Arquitectura escalable** y extensible.
 ---
+## 🧠 Decisiones Técnicas y Justificación
+
+Esta sección documenta las decisiones arquitectónicas y de diseño adoptadas en **VollMed API**, detallando el "porqué" detrás de cada implementación tecnológica.
+
+---
+
+### 1️⃣ Infraestructura y Frameworks
+* **Spring Boot 3:** Elegido como base por su ecosistema maduro, integración nativa con seguridad/persistencia y su capacidad para manejar estándares del sector salud (stateless y seguridad granular).
+* **Arquitectura DDD Light:** El proyecto se divide en módulos de dominio independientes (`medico`, `paciente`, `consulta`, etc.). Esto facilita la escalabilidad y permite agregar módulos como "Internaciones" o "Laboratorio" sin afectar la base existente.
+* **JPA/Hibernate + Flyway:** Se utiliza JPA para minimizar errores de SQL manual y **Flyway** para garantizar que la base de datos sea 100% reproducible y versionada en cualquier entorno.
+---
+### 2️⃣ Seguridad y Protección de Datos
+* **JWT + Refresh Tokens Rotativos:** * *Access Token:* 15 min | *Refresh Token:* 7 días (rotación obligatoria).
+    * **Justificación:** Este modelo es el estándar en organizaciones hospitalarias; minimiza riesgos de robo de identidad y permite un sistema 100% stateless.
+* **Soft Delete con Auditoría Completa:** Los registros médicos nunca se eliminan físicamente (ISO 27799). Se utilizan campos `deletedAt` y `deletedBy` para permitir la trazabilidad clínica y recuperación de datos ante errores.
+* **Control Estricto de Historia Clínica:** Acceso basado en el principio de *mínimo privilegio*. La lectura solo se permite si el usuario es el dueño de la historia, el médico que atendió al paciente o un administrador.
+---
+### 3️⃣ Lógica de Negocio y Flujos
+* **Persistencia en Cascada (Notas Clínicas):** Las notas pertenecen exclusivamente a la Historia Clínica; no existen de forma independiente para evitar huérfanos e inconsistencias.
+* **Gestión Automática de Turnos:** La cancelación de una consulta libera automáticamente el turno en la agenda, reflejando el flujo operativo real de una clínica y optimizando la disponibilidad.
+* **Validaciones Centralizadas:** Toda la lógica de negocio reside en la capa de **Servicios**, manteniendo los controladores limpios y facilitando las pruebas unitarias.
+---
+### 4️⃣ Calidad de Código y Estándares
+* **Desacoplamiento mediante DTOs:** Nunca se exponen las entidades JPA directamente. Esto evita ciclos JSON, protege datos sensibles y permite que la API evolucione internamente sin romper la integración con los clientes.
+* **Filtros Personalizados (OncePerRequestFilter):** La validación de tokens y roles se centraliza en un filtro de seguridad, simplificando la lógica de los endpoints.
+* **Simulación de Email (Mailtrap):** Uso de Mailtrap en desarrollo para verificar el formato HTML y los tokens de correo sin enviar mensajes reales a pacientes.
+---
+### 5️⃣ Preparado para el Futuro
+* **Diseño para Microservicios:** Al mantener dominios independientes y seguridad stateless desde el inicio, el sistema está listo para ser extraído en microservicios (Agenda, Historias, Usuarios) cuando la carga de la plataforma lo requiera.
+  
+---
+
 ## 🏗️ Arquitectura del Sistema
 
 ### ✔ Domain-Driven Design (DDD) Light
@@ -160,7 +193,155 @@ boolean esMedico = paciente.getConsultas()
 **Endpoints de Referencia:**
 * `POST /recetas` -> Creación de nueva prescripción médica.
 * `GET /recetas/{id}` -> Consulta de detalle de una receta específica.
+
 ---
+## ✅ 1️⃣ Diagrama de Arquitectura General
+
+```mermaid
+flowchart LR
+    A[Cliente Web / Swagger / Postman] -->|HTTP/HTTPS| B[API Spring Boot]
+
+    subgraph Seguridad
+        S1[JWT Access Token]
+        S2[Refresh Token Rotativo]
+        S3[JwtAuthenticationFilter]
+    end
+
+    B --> S3
+    S3 --> S1
+    S3 --> S2
+
+    subgraph Backend (Módulos)
+        M1[Pacientes]
+        M2[Médicos]
+        M3[Turnos y Consultas]
+        M4[Historia Clínica]
+        M5[Notas Clínicas]
+        M6[Recetas Médicas]
+        M7[Usuarios y Roles]
+        M8[Email Service (Mailtrap)]
+    end
+
+    B --> M1
+    B --> M2
+    B --> M3
+    B --> M4
+    B --> M5
+    B --> M6
+    B --> M7
+    B --> M8
+
+    subgraph "Base de Datos MySQL"
+        DB1[(usuarios)]
+        DB2[(roles)]
+        DB3[(pacientes)]
+        DB4[(medicos)]
+        DB5[(consultas)]
+        DB6[(historias_clinicas)]
+        DB7[(notas_clinicas)]
+        DB8[(recetas)]
+        DB9[(refresh_tokens)]
+    end
+
+    M1 --> DB3
+    M2 --> DB4
+    M3 --> DB5
+    M4 --> DB6
+    M5 --> DB7
+    M6 --> DB8
+    M7 --> DB1
+    M7 --> DB2
+    S2 --> DB9
+
+    M8 -->|SMTP| X[Mailtrap Sandbox]
+```
+## ✅ 2️⃣ Diagrama de Arquitectura por Capas (Clean + DDD Light)
+
+```mermaid
+flowchart TB
+
+subgraph "Presentation Layer"
+    C1[Controllers]
+    C2[DTOs de Entrada/Salida]
+end
+
+subgraph "Application Layer"
+    S1[Servicios de Dominio]
+    S2[Validadores]
+    S3[Autenticación]
+end
+
+subgraph "Domain Layer"
+    D1[Entidades]
+    D2[Reglas del Dominio]
+    D3[Value Objects]
+end
+
+subgraph "Infrastructure Layer"
+    R1[Repositorios JPA]
+    R2[Flyway Migrations]
+    R3[Email Service]
+    R4[Security Filter]
+end
+
+C1 --> S1
+S1 --> D1
+S1 --> R1
+S1 --> S2
+S3 --> R1
+C1 --> S3
+R1 --> D1
+R3 --> C1
+```
+## ✅ 3️⃣ Modelo Entidad–Relación (ERD Completo)
+
+```mermaid
+erDiagram
+    USUARIO ||--o{ PACIENTE : "1:1"
+    USUARIO ||--o{ MEDICO : "1:1"
+    USUARIO ||--o{ REFRESH_TOKEN : "1:N"
+
+    PACIENTE ||--o{ CONSULTA : tiene
+    MEDICO ||--o{ CONSULTA : realiza
+
+    PACIENTE ||--|| HISTORIA_CLINICA : "1:1"
+    HISTORIA_CLINICA ||--o{ NOTA_CLINICA : contiene
+    MEDICO ||--o{ NOTA_CLINICA : escribe
+
+    CONSULTA ||--o{ RECETA : "opcional"
+    PACIENTE ||--o{ RECETA : recibe
+    MEDICO ||--o{ RECETA : prescribe
+
+    MEDICO ||--o{ TURNO_DISPONIBLE : "configura"
+    MEDICO ||--o{ CONFIGURACION_HORARIA : "define"
+```
+## ✅ 4️⃣ Secuencia JWT + Refresh Tokens Rotativos
+
+```mermaid
+sequenceDiagram
+    autonumber
+    participant C as Cliente
+    participant A as AuthController
+    participant S as AuthService
+    participant DB as BD (refresh_tokens)
+
+    C->>A: POST /auth/login (email + clave)
+    A->>S: validarCredenciales()
+    S->>DB: registrarRefreshToken()
+    S-->>A: accessToken + refreshToken
+    A-->>C: tokens
+
+    Note over C: El access token dura 15 min
+
+    C->>A: POST /auth/refresh (refreshToken)
+    A->>S: validarRefreshToken()
+    S->>DB: marcarComoRevocado()
+    S->>DB: generarNuevoToken()
+    S-->>A: nuevo accessToken + nuevo refreshToken
+    A-->>C: nuevo par rotado
+```
+---
+
 # 🛡️ Seguridad & Autenticación
 
 La aplicación implementa un sistema de autenticación moderno y completo, desarrollado íntegramente con **Spring Security, JWT y Refresh Tokens** almacenados en base de datos.
