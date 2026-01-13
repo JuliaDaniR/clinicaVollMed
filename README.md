@@ -1,46 +1,166 @@
-# API Voll.med
+# 🏥 VollMed API — Plataforma Clínica Integral
 
-API REST para la aplicación **Voll.med**, una solución para gestionar la administración de médicos, pacientes y consultas en una clínica. Incluye funcionalidades de CRUD para médicos y pacientes, así como programación y cancelación de consultas. Además, cuenta con autenticación basada en JWT y documentación en Swagger.
+API robusta para administración médica, turnos, consultas, historiales clínicos y recetas electrónicas.
 
-## Descripción
+Construido con **Spring Boot**, **Spring Security (JWT + Refresh Tokens)**, **JPA/Hibernate**, **OpenAPI 3**, **Flyway**, y **arquitectura orientada a dominio**.
 
-La API Voll.med permite:
-- **Gestión de médicos y pacientes**: Registro, actualización, consulta y eliminación.
-- **Administración de consultas**: Programación y cancelación de citas con médicos.
-- **Autenticación**: Rutas seguras con tokens JWT.
+## 📚 Índice
 
-## Endpoints Principales
+* Descripción General
+* Arquitectura del Sistema
+* Módulos del Dominio
+    * Médicos
+    * Pacientes
+    * Turnos Médicos
+    * Consultas Médicas
+    * Historia Clínica
+    * Notas Clínicas
+    * Recetas Médicas
+* Seguridad y Autenticación
+* Endpoints Principales
+* Modelo de Datos
+* Emails con Mailtrap
+* Instalación y Ejecución
+* Roadmap y Mejoras Futuras
+---
+## 🩺 Descripción General
 
-### Pacientes
+VollMed API es una plataforma clínica orientada a resolver necesidades reales de organizaciones médicas:
 
-| Método | Endpoint            | Descripción                          |
-|--------|----------------------|--------------------------------------|
-| POST   | `/pacientes`        | Registrar un nuevo paciente          |
-| GET    | `/pacientes`        | Listar pacientes con paginación      |
-| GET    | `/pacientes/{id}`   | Obtener detalles de un paciente      |
-| PUT    | `/pacientes`        | Actualizar los datos de un paciente  |
-| DELETE | `/pacientes/{id}`   | Eliminar un paciente                 |
+* ✔ **Administración integral** de Pacientes y Médicos.
+* ✔ **Gestión inteligente** de Turnos.
+* ✔ **Registro completo** de Consultas.
+* ✔ **Historia Clínica** con control estricto de permisos.
+* ✔ **Notas Clínicas** (solo médicos).
+* ✔ **Recetas Médicas Digitales**.
+* ✔ **Seguridad corporativa** (JWT + Refresh Tokens rotativos + auditoría).
+* ✔ **Validación por email** en flujos sensibles.
+* ✔ **Documentación completa** con OpenAPI.
+* ✔ **Arquitectura escalable** y extensible.
+---
+## 🏗️ Arquitectura del Sistema
 
-### Médicos
+### ✔ Domain-Driven Design (DDD) Light
+La lógica se organiza por contextos delimitados para facilitar el mantenimiento:
+* `domain/medico`
+* `domain/paciente`
+* `domain/consulta`
+* `domain/historial`
+* `domain/recetas`
 
-| Método | Endpoint             | Descripción                           |
-|--------|-----------------------|---------------------------------------|
-| POST   | `/medicos`           | Registrar un nuevo médico             |
-| GET    | `/medicos`           | Listar médicos con paginación         |
-| GET    | `/medicos/{id}`      | Obtener detalles de un médico         |
-| PUT    | `/medicos`           | Actualizar datos de un médico         |
-| DELETE | `/medicos/{id}`      | Desactivar un médico                  |
+**Cada módulo contiene:**
+* **Entidades:** Mapeo de persistencia.
+* **DTOs:** Objetos de transferencia de datos para entrada y salida.
+* **Repositorios:** Abstracción de acceso a datos.
+* **Servicios:** Lógica de negocio específica.
+* **Validadores:** Reglas de negocio (ej. validación de horarios).
 
-### Consultas
+### ✔ Seguridad completamente Stateless
+* **Access Token:** 15 minutos de validez.
+* **Refresh Token:** 7 días con **rotación obligatoria**.
+* **Logout:** Mecanismo de revocación persistido en base de datos.
+* **Sin sesiones:** Cero estado del lado del servidor para máxima escalabilidad.
 
-| Método | Endpoint             | Descripción                           |
-|--------|-----------------------|---------------------------------------|
-| POST   | `/consultas`         | Programar una nueva consulta          |
-| DELETE | `/consultas`         | Cancelar una consulta                 |
-| PUT    | `/consultas`         | Actualizar los datos de una consulta  |
+### ✔ Auditoría Transparente
+Todas las entidades críticas heredan de `BaseAuditable`, registrando automáticamente:
+* `createdAt`, `createdBy`
+* `updatedAt`, `updatedBy`
+* `deletedAt`, `deletedBy` (Soft Delete)
 
---- 
+### ✔ Flyway Migrations
+Estructura de base de datos totalmente **versionada, trazable y reproducible** en cualquier entorno.
+---
+## 🔍 Módulos del Dominio
 
+### 👨‍⚕️ Médicos
+**Atributos principales:**
+* Usuario asociado, Matrícula, Especialidad, Dirección.
+* Relaciones: Consultas, Recetas, Configuración de turnos.
+
+**Reglas de negocio:**
+* Solo **ADMIN** o **RECEPCIÓN** pueden crear médicos.
+* Un médico puede editar solo su propio perfil.
+* **Soft-delete** con auditoría (no se eliminan registros físicos).
+
+### 👤 Pacientes
+**Atributos:**
+* Usuario asociado, Dirección, Fecha de alta.
+* Relaciones: Consultas, Historia clínica.
+
+**Permisos:**
+* **ADMIN** y **RECEPCIÓN** pueden registrarlos.
+* El paciente solo puede visualizar sus propios datos.
+* Soft-delete auditado.
+
+---
+
+### 📅 Turnos Médicos
+Sistema automático basado en la configuración horaria del médico.
+* **Generación automática** de turnos disponibles.
+* Marcado como **reservado** al crear una consulta.
+* **Liberación** automática al cancelar.
+* Validadores **anti-solapamiento** de horarios.
+
+### 🩺 Consultas Médicas
+**Contenido:**
+* Médico, Paciente, Fecha/Hora, Estado.
+* Motivo de cancelación (si aplica).
+
+**Validaciones de negocio:**
+* Médico disponible en el horario solicitado.
+* Paciente con estado activo.
+* Verificación de no duplicidad de turnos.
+
+---
+
+### 📘 Historia Clínica
+Un paciente tiene una única y permanente historia clínica que centraliza:
+* Datos demográficos del paciente.
+* Notas clínicas, Consultas y Recetas.
+* Registro de auditoría completo.
+
+**Matriz de Acceso:**
+
+| Rol | Nivel de Acceso |
+| :--- | :--- |
+| **ADMIN** | Acceso Total |
+| **MEDICO** | Solo pacientes atendidos previamente |
+| **PACIENTE** | Solo su propia historia clínica |
+| **RECEPCIONISTA** | Acceso Limitado (Lectura administrativa) |
+
+**Lógica de Validación de Acceso (Ejemplo):**
+```java
+boolean esPaciente = paciente.getUsuario().getId().equals(uid);
+boolean esMedico = paciente.getConsultas()
+    .stream()
+    .anyMatch(c -> c.getMedico().getUsuario().getId().equals(uid));
+```
+---
+### 📝 Notas Clínicas
+* **Restricción:** Solo los médicos autorizados pueden crearlas.
+* **Almacenamiento:** Se encuentran integradas directamente dentro de la historia clínica del paciente.
+* **Auditoría:** Registro automático de trazabilidad (quién creó la nota y en qué fecha/hora exacta).
+* **Persistencia:** Implementada mediante cascada (`cascade = CascadeType.ALL`) para asegurar la integridad de los datos vinculados.
+
+---
+
+### 💊 Recetas Médicas
+**Atributos principales:**
+* **Actores:** Vínculo obligatorio con Médico y Paciente.
+* **Contenido:** Fecha de emisión e indicaciones terapéuticas detalladas.
+* **Consulta:** Relación opcional con un ID de consulta específica para trazabilidad médica.
+
+**Permisos por Rol:**
+| Rol | Permiso |
+| :--- | :--- |
+| **Médicos** | Crear nuevas recetas y visualizar las emitidas por ellos mismos. |
+| **Paciente** | Visualizar exclusivamente sus recetas asignadas. |
+| **Recepción** | Acceso de lectura limitada para validaciones administrativas. |
+
+**Endpoints de Referencia:**
+* `POST /recetas` -> Creación de nueva prescripción médica.
+* `GET /recetas/{id}` -> Consulta de detalle de una receta específica.
+---
 # 🛡️ Seguridad & Autenticación
 
 La aplicación implementa un sistema de autenticación moderno y completo, desarrollado íntegramente con **Spring Security, JWT y Refresh Tokens** almacenados en base de datos.
