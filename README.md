@@ -556,3 +556,22 @@ Con la aplicación en ejecución, puedes acceder a:
 - **API**: Comienza a interactuar con los endpoints según lo documentado en Swagger.
 
 ---
+## 🧭 Roadmap
+
+### ✅ Implementado
+* [x] **Recetas médicas:** Flujo completo de emisión y consulta.
+* [x] **Historia clínica:** Sistema con control de permisos avanzados por rol.
+* [x] **Auditoría automática:** Trazabilidad de creación, edición y borrado.
+* [x] **Emails transaccionales:** Integración para notificaciones críticas.
+* [x] **Seguridad:** JWT con sistema de Refresh Tokens rotativos.
+
+---
+
+### 🔜 Próximas Mejoras
+* [ ] **Estados de receta:** Gestión de ciclo de vida (activa / anulada / renovada).
+* [ ] **Gestión de archivos:** Capacidad para adjuntar PDFs y archivos clínicos.
+* [ ] **Búsqueda Pro:** Queries avanzadas con filtros dinámicos por médico/paciente.
+* [ ] **Analytics:** Módulo de estadísticas médicas y reporte de productividad.
+* [ ] **Frontend:** Dashboard profesional para la administración clínica.
+* [ ] **Notificaciones:** Implementación de notificaciones push en tiempo real.
+---
