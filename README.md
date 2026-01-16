@@ -762,3 +762,19 @@ Con la aplicación en ejecución, puedes acceder a:
 * [ ] **Frontend:** Dashboard profesional para la administración clínica.
 * [ ] **Notificaciones:** Implementación de notificaciones push en tiempo real.
 ---
+
+---
+
+## 👤 Autor
+
+Desarrollado con ❤️ por **Julia Daniela Rodriguez** [![LinkedIn](https://img.shields.io/badge/LinkedIn-0077B5?style=for-the-badge&logo=linkedin&logoColor=white)](https://www.linkedin.com/in/julia-daniela-rodriguez/) 
+[![GitHub](https://img.shields.io/badge/GitHub-100000?style=for-the-badge&logo=github&logoColor=white)](https://github.com/JuliaDaniR)
+
+---
+
+### 📝 Notas del Desarrollador
+Este proyecto forma parte de mi portafolio profesional como **Desarrolladora Backend**. Si tienes alguna duda sobre la arquitectura, la lógica de seguridad con JWT o quieres proponer una mejora, no dudes en contactarme o abrir un *Issue* en el repositorio.
+
+> "La tecnología es mejor cuando une a las personas y optimiza la salud."
+
+---
