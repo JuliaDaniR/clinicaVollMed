@@ -7,20 +7,19 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
 @Component
-public class MedicoActivo implements ValidadorDeConsultas{
-    
+public class MedicoActivo implements ValidadorDeConsultas {
+
     @Autowired
     private MedicoRepository medicoRepo;
 
-    public void validar(DatosAgendarConsulta datos){
+    public void validar(DatosValidacionConsulta datos) {
 
-        if (datos.idMedico() == null){
-            return;
-        }
-        var medicoActivo = medicoRepo.findActivoById(datos.idMedico());
+        if (datos.idMedico() == null) return;
 
-        if(!medicoActivo){
-            throw new ValidationException("No se pueden permitir agendar citas con medicos inactivos");
+        boolean activo = medicoRepo.findActivoById(datos.idMedico());
+
+        if (!activo) {
+            throw new ValidationException("No se pueden agendar consultas con médicos inactivos");
         }
     }
 }

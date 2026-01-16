@@ -7,6 +7,7 @@ import med.voll.api.domain.horario.model.TurnoDisponible;
 import med.voll.api.domain.horario.model.enumerator.DiaSemana;
 import med.voll.api.domain.horario.model.enumerator.EstadoTurno;
 import med.voll.api.domain.horario.repository.TurnoDisponibleRepository;
+import med.voll.api.domain.medico.model.Medico;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -117,5 +118,32 @@ public class AgendaGeneratorService {
         turnoRepo.deleteByMedicoAndFechaAfter(config.getMedico(), fecha.minusDays(1));
 
         return generarTurnosParaDia(config, fecha, bloques);
+    }
+
+    /* ============================================================
+       4. REGENERAR UN RANGO DE FECHAS
+       ============================================================ */
+    @Transactional
+    public int regenerarRango(ConfiguracionHorariaMedico config,
+                              LocalDate inicio,
+                              LocalDate fin) {
+
+        // 1. Borrar turnos disponibles dentro del rango
+        turnoRepo.deleteByMedicoAndFechaBetweenAndEstado(
+                config.getMedico(),
+                inicio,
+                fin,
+                EstadoTurno.DISPONIBLE
+        );
+
+        // 2. Regenerar turnos solo en ese rango
+        return generarAgendaCompleta(config, inicio, fin);
+    }
+
+    public int contarTurnosGenerados(Medico medico) {
+        LocalDate hoy = LocalDate.now();
+        LocalDate fin = hoy.plusMonths(3);
+
+        return turnoRepo.countByMedicoAndFechaBetween(medico, hoy, fin);
     }
 }

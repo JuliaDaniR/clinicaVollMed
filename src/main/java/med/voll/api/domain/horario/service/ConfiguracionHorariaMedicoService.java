@@ -2,6 +2,7 @@ package med.voll.api.domain.horario.service;
 
 import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
+import med.voll.api.domain.horario.dto.ConfiguracionHorariaListadoDTO;
 import med.voll.api.domain.horario.model.ConfiguracionHorariaMedico;
 import med.voll.api.domain.horario.model.DiaHorarioMedico;
 import med.voll.api.domain.horario.model.enumerator.DiaSemana;
@@ -35,15 +36,19 @@ public class ConfiguracionHorariaMedicoService {
         Medico medico = medicoRepo.findById(dto.medicoId())
                 .orElseThrow(() -> new IllegalArgumentException("Médico no encontrado"));
 
-        configuracionRepo.findByMedicoAndActivaTrue(medico)
+        configuracionRepo.findByMedicoAndActivoTrue(medico)
                 .ifPresent(c -> { throw new IllegalStateException("El médico ya tiene una configuración activa"); });
 
         validarBloques(dto.dias());
 
         ConfiguracionHorariaMedico config = new ConfiguracionHorariaMedico();
         config.setMedico(medico);
-        config.setActiva(true);
-        config.setDuracionMinutosPersonalizada(dto.duracionPersonalizada());
+        config.setActivo(true);
+        config.setDuracionMinutosPersonalizada(
+                dto.duracionPersonalizada() != null
+                        ? dto.duracionPersonalizada()
+                        : medico.getEspecialidad().getDuracionMinutos()
+        );
 
         List<DiaHorarioMedico> bloques = dto.dias().stream()
                 .map(d -> new DiaHorarioMedico(
@@ -72,20 +77,29 @@ public class ConfiguracionHorariaMedicoService {
 
         validarBloques(dto.dias());
 
-        config.getDias().clear();
+        // Actualizar duración personalizada
+        Medico medico = medicoRepo.findById(dto.medicoId())
+                .orElseThrow(() -> new IllegalArgumentException("Médico no encontrado"));
 
+        int duracion = dto.duracionPersonalizada() != null
+                ? dto.duracionPersonalizada()
+                : medico.getEspecialidad().getDuracionMinutos();
+
+        config.setDuracionMinutosPersonalizada(duracion);
+
+        // Reemplazar bloques horarios
+        config.getDias().clear();
         List<DiaHorarioMedico> nuevos = dto.dias().stream()
                 .map(d -> new DiaHorarioMedico(
                         null, d.dia(), d.horaInicio(), d.horaFin(), config
                 ))
                 .toList();
 
-        config.setDuracionMinutosPersonalizada(dto.duracionPersonalizada());
         config.getDias().addAll(nuevos);
 
         configuracionRepo.save(config);
 
-        // 🔥 Borramos futuros y regeneramos
+        // Regenerar turnos futuros
         agendaGeneratorService.regenerarDesdeHoy(config);
 
         return config;
@@ -100,19 +114,30 @@ public class ConfiguracionHorariaMedicoService {
         ConfiguracionHorariaMedico config = configuracionRepo.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("Config no encontrada"));
 
-        config.setActiva(false);
+        config.setActivo(false);
         configuracionRepo.save(config);
     }
 
     /* ============================================================
        4. LISTAR CONFIGURACIONES
        ============================================================ */
-    public List<ConfiguracionHorariaMedico> listarPorMedico(Long medicoId) {
+    public List<ConfiguracionHorariaListadoDTO> listarPorMedico(Long medicoId) {
+
         Medico medico = medicoRepo.findById(medicoId)
                 .orElseThrow(() -> new IllegalArgumentException("Médico no encontrado"));
 
-        return configuracionRepo.findByMedico(medico);
+        return configuracionRepo.findByMedico(medico)
+                .stream()
+                .map(c -> new ConfiguracionHorariaListadoDTO(
+                        c.getId(),
+                        c.isActivo(),
+                        c.getDuracionTurno(),
+                        c.getDias().size(),
+                        c.getMedico().getUsuario().getNombre()
+                ))
+                .toList();
     }
+
 
     /* ============================================================
        VALIDACIONES
@@ -153,7 +178,7 @@ public class ConfiguracionHorariaMedicoService {
         ConfiguracionHorariaMedico config = configuracionRepo.findById(id)
                 .orElseThrow(() -> new EntityNotFoundException("Configuración horaria no encontrada"));
 
-        if (!config.getActiva()) {
+        if (!config.getActivo()) {
             throw new EntityNotFoundException("La configuración está desactivada");
         }
 

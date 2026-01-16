@@ -25,7 +25,7 @@ public class ConfiguracionHorariaMedico {
     @OneToMany(mappedBy = "configuracion", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<DiaHorarioMedico> dias;  // lunes, martes, etc.
 
-    private Boolean activa = true;
+    private Boolean activo = true;
 
     /** Duración del turno.
      * Si es null → se usa la duración de la especialidad.
@@ -36,5 +36,9 @@ public class ConfiguracionHorariaMedico {
         return duracionMinutosPersonalizada != null
                 ? duracionMinutosPersonalizada
                 : medico.getEspecialidad().getDuracionMinutos();
+    }
+
+    public boolean isActivo() {
+        return Boolean.TRUE.equals(this.activo);
     }
 }

@@ -6,17 +6,19 @@ import org.springframework.stereotype.Component;
 
 import java.time.DayOfWeek;
 @Component
-public class HorarioDeFuncionamientoClinica implements ValidadorDeConsultas{
+public class HorarioDeFuncionamientoClinica implements ValidadorDeConsultas {
 
-    public void validar(DatosAgendarConsulta datos) {
+    public void validar(DatosValidacionConsulta datos) {
 
-        var domingo = DayOfWeek.SUNDAY.equals(datos.fecha().getDayOfWeek());
+        var fecha = datos.fecha();
+        var domingo = fecha.getDayOfWeek().equals(DayOfWeek.SUNDAY);
 
-        var antesDeHoraApertura = datos.fecha().getHour()<7;
-        var despuesDeHoraCierre = datos.fecha().getHour()>18;
+        var antes = fecha.getHour() < 7;
+        var despues = fecha.getHour() > 18;
 
-        if(domingo || antesDeHoraApertura || despuesDeHoraCierre){
-            throw new ValidationException("El horario de atención de la clinica es de lunes a sabados de 07:00 a 19:00 hs");
+        if (domingo || antes || despues) {
+            throw new ValidationException(
+                    "El horario de atención de la clínica es de lunes a sábado de 07:00 a 19:00 hs");
         }
     }
 }

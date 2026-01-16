@@ -1,11 +1,14 @@
 package med.voll.api.domain.horario.service;
 
 import lombok.RequiredArgsConstructor;
+import med.voll.api.domain.horario.dto.TurnoAccionDTO;
+import med.voll.api.domain.horario.dto.TurnoDisponibleDTO;
 import med.voll.api.domain.horario.model.ConfiguracionHorariaMedico;
 import med.voll.api.domain.horario.repository.ConfiguracionHorariaMedicoRepository;
 import med.voll.api.domain.horario.model.TurnoDisponible;
 import med.voll.api.domain.horario.model.enumerator.EstadoTurno;
 import med.voll.api.domain.horario.repository.TurnoDisponibleRepository;
+import med.voll.api.domain.medico.model.Medico;
 import med.voll.api.domain.medico.repository.MedicoRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -25,44 +28,69 @@ public class TurnoDisponibleService {
     /* ============================================================
        1. LISTAR TURNOS DISPONIBLES POR MÉDICO
        ============================================================ */
-    public List<TurnoDisponible> listarDisponibles(Long medicoId) {
-        return turnoRepo.findByMedicoIdAndEstadoOrderByFechaAscHoraAsc(
-                medicoId, EstadoTurno.DISPONIBLE
-        );
+    public List<TurnoDisponibleDTO> listarDisponibles(Long medicoId) {
+        Medico medico = medicoRepo.findById(medicoId)
+                .orElseThrow(() -> new IllegalArgumentException("Médico no encontrado"));
+
+        return turnoRepo.findDisponiblesFuturos(medico, LocalDate.now())
+                .stream()
+                .map(t -> new TurnoDisponibleDTO(
+                        t.getId(),
+                        t.getFecha(),
+                        t.getHora(),
+                        t.getEstado(),
+                        medico.getId(),
+                        medico.getUsuario().getNombre()
+                ))
+                .toList();
     }
 
     /* ============================================================
        2. RESERVAR UN TURNO (cita médica)
        ============================================================ */
-    @Transactional
-    public TurnoDisponible reservar(Long turnoId) {
-
-        TurnoDisponible turno = turnoRepo.findById(turnoId)
-                .orElseThrow(() -> new RuntimeException("Turno no encontrado"));
-
-        if (turno.getEstado() != EstadoTurno.DISPONIBLE) {
-            throw new RuntimeException("El turno no está disponible");
-        }
-
+    public TurnoAccionDTO reservar(Long turnoId) {
+        TurnoDisponible turno = obtenerTurnoDisponible(turnoId);
         turno.setEstado(EstadoTurno.RESERVADO);
-        return turnoRepo.save(turno);
+        turnoRepo.save(turno);
+
+        return new TurnoAccionDTO(
+                turno.getId(),
+                turno.getFecha(),
+                turno.getHora(),
+                turno.getEstado().name()
+        );
     }
 
     /* ============================================================
        3. CANCELAR UNA RESERVA → vuelve a disponible
        ============================================================ */
-    @Transactional
-    public TurnoDisponible cancelar(Long turnoId) {
+    public TurnoAccionDTO cancelar(Long turnoId) {
+        TurnoDisponible turno = obtenerTurno(turnoId);
+        turno.setEstado(EstadoTurno.DISPONIBLE);
+        turnoRepo.save(turno);
 
-        TurnoDisponible turno = turnoRepo.findById(turnoId)
-                .orElseThrow(() -> new RuntimeException("Turno no encontrado"));
+        return new TurnoAccionDTO(
+                turno.getId(),
+                turno.getFecha(),
+                turno.getHora(),
+                turno.getEstado().name()
+        );
+    }
 
-        if (turno.getEstado() != EstadoTurno.RESERVADO) {
-            throw new RuntimeException("Solo se pueden cancelar turnos reservados");
+    private TurnoDisponible obtenerTurno(Long turnoId) {
+        return turnoRepo.findById(turnoId)
+                .orElseThrow(() -> new IllegalArgumentException("Turno no encontrado"));
+    }
+
+    private TurnoDisponible obtenerTurnoDisponible(Long turnoId) {
+
+        TurnoDisponible turno = obtenerTurno(turnoId);
+
+        if (turno.getEstado() != EstadoTurno.DISPONIBLE) {
+            throw new IllegalStateException("El turno no está disponible");
         }
 
-        turno.setEstado(EstadoTurno.DISPONIBLE);
-        return turnoRepo.save(turno);
+        return turno;
     }
 
     /* ============================================================
@@ -89,6 +117,21 @@ public class TurnoDisponibleService {
         turnoRepo.saveAll(turnos);
 
         return count;
+    }
+
+    @Transactional
+    public void desbloquearRango(Long medicoId, LocalDate desde, LocalDate hasta) {
+
+        Medico medico = medicoRepo.findById(medicoId)
+                .orElseThrow(() -> new IllegalArgumentException("Médico no encontrado"));
+
+        List<TurnoDisponible> turnos = turnoRepo.findByMedicoIdAndFechaBetween(medico.getId(), desde, hasta);
+
+        turnos.stream()
+                .filter(t -> t.getEstado() == EstadoTurno.BLOQUEADO)
+                .forEach(t -> t.setEstado(EstadoTurno.DISPONIBLE));
+
+        turnoRepo.saveAll(turnos);
     }
 
     /* ============================================================

@@ -12,6 +12,7 @@ import med.voll.api.domain.auth.dto.DatosSolicitudResetPassword;
 import med.voll.api.domain.usuarios.dto.DatosAutenticacionUsuario;
 import med.voll.api.domain.usuarios.model.Usuario;
 import med.voll.api.infra.security.TokenService;
+import med.voll.api.infra.security.refresh.RefreshRequest;
 import med.voll.api.infra.security.refresh.RefreshTokenService;
 import med.voll.api.infra.security.reset.PasswordResetService;
 import org.springframework.http.ResponseEntity;
@@ -131,9 +132,9 @@ public class AutenticacionController {
     })
     @PostMapping("/refresh")
     public ResponseEntity<?> refresh(
-            @RequestBody Map<String, String> body) {
+            @RequestBody RefreshRequest request) {
 
-        String refreshTokenStr = body.get("refreshToken");
+        String refreshTokenStr = request.refreshToken();
         RefreshToken refreshToken = refreshTokenService.validarRefreshToken(refreshTokenStr);
 
         Usuario usuario = refreshToken.getUsuario();

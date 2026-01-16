@@ -1,25 +1,31 @@
 package med.voll.api.domain.consulta.validaciones;
 
 import jakarta.validation.ValidationException;
-import med.voll.api.domain.consulta.dto.DatosAgendarConsulta;
 import med.voll.api.domain.consulta.repository.IConsultaRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
+import java.time.LocalDateTime;
+
 @Component
-public class PacienteSinConsulta implements ValidadorDeConsultas{
+public class PacienteSinConsulta implements ValidadorDeConsultas {
+
     @Autowired
     private IConsultaRepository consultaRepo;
 
-    public void validar(DatosAgendarConsulta datos) {
+    public void validar(DatosValidacionConsulta datos) {
 
-        var primerHorario = datos.fecha().withHour(7).withMinute(0).withSecond(0).withNano(0);
-        var ultimoHorario = datos.fecha().withHour(18).withMinute(0).withSecond(0).withNano(0);
+        LocalDateTime fecha = datos.fecha();
 
-        var pacienteConConsulta = consultaRepo.existsByPacienteIdAndFechaBetween(datos.idPaciente(), primerHorario, ultimoHorario);
+        var inicio = fecha.withHour(7).withMinute(0).withSecond(0).withNano(0);
+        var fin = fecha.withHour(18).withMinute(0).withSecond(0).withNano(0);
 
-        if (pacienteConConsulta) {
-            throw new ValidationException("El paciente ya tiene una consulta para ese dia");
+        boolean existe = consultaRepo.existsByPacienteIdAndFechaBetween(
+                datos.idPaciente(), inicio, fin
+        );
+
+        if (existe) {
+            throw new ValidationException("El paciente ya tiene una consulta en ese día");
         }
     }
 }

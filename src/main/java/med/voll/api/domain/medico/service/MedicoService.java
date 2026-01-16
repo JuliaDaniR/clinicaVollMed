@@ -138,7 +138,7 @@ public class MedicoService {
                 true,
                 "Médico desactivado",
                 null,
-                HttpStatus.NO_CONTENT
+                HttpStatus.OK
         );
     }
 

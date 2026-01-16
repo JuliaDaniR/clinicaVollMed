@@ -9,17 +9,7 @@ import med.voll.api.domain.medico.model.enumerator.Especialidad;
 import java.time.LocalDateTime;
 
 public record DatosAgendarConsulta(
+        @NotNull Long idTurno,
         @NotNull Long idPaciente,
-        Long idMedico,
-        @NotNull Especialidad especialidad,
-        @NotNull @Future LocalDateTime fecha
-) {
-
-    public record DatosActualizarConsulta(
-            @NotNull Long id,
-            Long idPaciente,
-            Long idMedico,
-            LocalDateTime fecha,
-            MotivoCancelamiento motivoCancelamiento
-    ) {}
-}
+        String motivoConsulta
+) {}

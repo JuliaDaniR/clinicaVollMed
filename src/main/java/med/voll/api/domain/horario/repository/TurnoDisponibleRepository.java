@@ -11,7 +11,9 @@ import org.springframework.stereotype.Repository;
 
 import java.time.LocalDate;
 import java.time.LocalTime;
+import java.util.Collection;
 import java.util.List;
+
 @Repository
 public interface TurnoDisponibleRepository extends JpaRepository<TurnoDisponible, Long> {
 
@@ -31,4 +33,21 @@ public interface TurnoDisponibleRepository extends JpaRepository<TurnoDisponible
     AND t.estado = 'DISPONIBLE'
 """)
     void deleteFutureDisponiblesByMedico(@Param("medicoId") Long medicoId);
+
+    int countByMedicoAndFechaBetween(Medico medico, LocalDate inicio, LocalDate fin);
+
+    void deleteByMedicoAndFechaBetweenAndEstado(
+            Medico medico,
+            LocalDate inicio,
+            LocalDate fin,
+            EstadoTurno estado
+    );
+
+    @Query(""" 
+               SELECT t FROM TurnoDisponible t 
+               WHERE t.medico = :medico 
+               AND t.estado = 'DISPONIBLE' 
+               AND t.fecha >= :fecha 
+               ORDER BY t.fecha, t.hora """)
+    List<TurnoDisponible> findDisponiblesFuturos(@Param("medico") Medico medico, @Param("fecha") LocalDate fecha);
 }

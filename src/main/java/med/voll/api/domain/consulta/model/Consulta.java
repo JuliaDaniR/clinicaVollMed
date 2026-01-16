@@ -5,8 +5,10 @@ import jakarta.persistence.*;
 import lombok.*;
 import med.voll.api.domain.consulta.dto.DatosAgendarConsulta;
 import med.voll.api.domain.consulta.model.enumerator.MotivoCancelamiento;
+import med.voll.api.domain.horario.model.TurnoDisponible;
 import med.voll.api.domain.medico.model.Medico;
 import med.voll.api.domain.paciente.model.Paciente;
+import med.voll.api.domain.shared.BaseAuditable;
 
 import java.time.LocalDateTime;
 
@@ -16,7 +18,7 @@ import java.time.LocalDateTime;
 @NoArgsConstructor
 @AllArgsConstructor
 @EqualsAndHashCode(of = "id")
-public class Consulta {
+public class Consulta extends BaseAuditable {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -38,15 +40,22 @@ public class Consulta {
     @Column(nullable = false)
     private Boolean cancelada = false;
 
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "turno_id", nullable = false)
+    private TurnoDisponible turno;
+
     @Enumerated(EnumType.STRING)
     @Column(name = "motivo_cancelamiento")
     private MotivoCancelamiento motivoCancelamiento;
 
-    public Consulta(Medico medico, Paciente paciente, LocalDateTime fecha) {
+    private String motivoConsulta;
+
+    public Consulta(Medico medico, Paciente paciente, TurnoDisponible turno, String motivoConsulta) {
         this.medico = medico;
         this.paciente = paciente;
-        this.fecha = fecha;
-        this.cancelada = false;
+        this.turno = turno;
+        this.fecha = LocalDateTime.of(turno.getFecha(), turno.getHora());
+        this.motivoConsulta = motivoConsulta;
     }
 
     public void cancelar(MotivoCancelamiento motivo) {
@@ -54,25 +63,9 @@ public class Consulta {
         this.motivoCancelamiento = motivo;
     }
 
-    public void actualizar(DatosAgendarConsulta.DatosActualizarConsulta dto,
-                           Medico nuevoMedico,
-                           Paciente nuevoPaciente) {
-
-        if (dto.idMedico() != null) {
-            this.medico = nuevoMedico;
-        }
-
-        if (dto.idPaciente() != null) {
-            this.paciente = nuevoPaciente;
-        }
-
-        if (dto.fecha() != null) {
-            this.fecha = dto.fecha();
-        }
-
-        if (dto.motivoCancelamiento() != null) {
-            this.motivoCancelamiento = dto.motivoCancelamiento();
-        }
+    public void reprogramar(TurnoDisponible nuevoTurno) {
+        this.turno = nuevoTurno;
+        this.fecha = LocalDateTime.of(nuevoTurno.getFecha(), nuevoTurno.getHora());
     }
 }
 

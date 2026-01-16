@@ -1,6 +1,7 @@
 package med.voll.api.controller;
 
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
@@ -9,6 +10,7 @@ import jakarta.persistence.EntityNotFoundException;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import med.voll.api.domain.horario.dto.ConfiguracionHorariaDTO;
+import med.voll.api.domain.horario.dto.ConfiguracionHorariaListadoDTO;
 import med.voll.api.domain.horario.model.ConfiguracionHorariaMedico;
 import med.voll.api.domain.horario.service.AgendaGeneratorService;
 import med.voll.api.domain.horario.service.ConfiguracionHorariaMedicoService;
@@ -18,6 +20,7 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.web.util.UriComponentsBuilder;
 
 import java.net.URI;
+import java.time.LocalDate;
 import java.util.List;
 import java.util.Map;
 
@@ -51,10 +54,16 @@ public class ConfiguracionHorariaController {
             URI uri = uriBuilder.path("/horarios/{id}")
                     .buildAndExpand(config.getId()).toUri();
 
+            int cantidadBloques = config.getDias().size();
+            int cantidadTurnos = agendaService.contarTurnosGenerados(config.getMedico());
+
             return ResponseEntity.created(uri).body(Map.of(
                     "status", "success",
                     "message", "Configuración creada correctamente",
-                    "data", config
+                    "configuracionId", config.getId(),
+                    "medico", config.getMedico().getUsuario().getNombre(),
+                    "bloquesHorarios", cantidadBloques,
+                    "turnosGenerados", cantidadTurnos
             ));
 
         } catch (Exception e) {
@@ -64,6 +73,7 @@ public class ConfiguracionHorariaController {
             ));
         }
     }
+
 
     // ============================================================
     // ACTUALIZAR CONFIGURACIÓN
@@ -82,16 +92,20 @@ public class ConfiguracionHorariaController {
             @RequestBody @Valid ConfiguracionHorariaDTO dto) {
 
         try {
-            ConfiguracionHorariaMedico config = configuracionService.actualizarConfiguracion(id, dto);
+            ConfiguracionHorariaMedico config =
+                    configuracionService.actualizarConfiguracion(id, dto);
 
-            int regenerados = agendaService.regenerarDesdeHoy(config);
+            int turnosRegenerados = agendaService.regenerarDesdeHoy(config);
 
             return ResponseEntity.ok(Map.of(
                     "status", "success",
-                    "message", "Configuración actualizada y turnos regenerados",
-                    "turnos_generados", regenerados,
-                    "data", config
+                    "message", "Configuración actualizada correctamente",
+                    "configuracionId", config.getId(),
+                    "medico", config.getMedico().getUsuario().getNombre(),
+                    "bloquesHorarios", config.getDias().size(),
+                    "turnosRegenerados", turnosRegenerados
             ));
+
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of(
                     "status", "error",
@@ -99,6 +113,7 @@ public class ConfiguracionHorariaController {
             ));
         }
     }
+
 
     // ============================================================
     // DESACTIVAR CONFIGURACIÓN
@@ -119,6 +134,9 @@ public class ConfiguracionHorariaController {
     // ============================================================
     // LISTAR CONFIGURACIONES DEL MÉDICO
     // ============================================================
+    // ============================================================
+// LISTAR CONFIGURACIONES DEL MÉDICO
+// ============================================================
     @Operation(
             summary = "Listar configuraciones de un médico",
             description = "Obtiene todas las configuraciones horarias activas e inactivas del médico."
@@ -128,9 +146,14 @@ public class ConfiguracionHorariaController {
     })
     @GetMapping("/medico/{medicoId}")
     public ResponseEntity<?> listarPorMedico(@PathVariable Long medicoId) {
+
+        List<ConfiguracionHorariaListadoDTO> lista =
+                configuracionService.listarPorMedico(medicoId);
+
         return ResponseEntity.ok(Map.of(
                 "status", "success",
-                "data", configuracionService.listarPorMedico(medicoId)
+                "total", lista.size(),
+                "data", lista
         ));
     }
 
@@ -160,6 +183,82 @@ public class ConfiguracionHorariaController {
             ));
 
         } catch (EntityNotFoundException e) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of(
+                    "status", "error",
+                    "message", e.getMessage()
+            ));
+        }
+    }
+
+    // ============================================================
+    // REGENERAR TURNOS DE UN DÍA ESPECÍFICO
+    // ============================================================
+    @Operation(
+            summary = "Regenerar turnos de un día",
+            description = "Elimina los turnos disponibles del día indicado y los vuelve a generar según la configuración horaria del médico."
+    )
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "Turnos regenerados correctamente"),
+            @ApiResponse(responseCode = "404", description = "Configuración no encontrada")
+    })
+    @PostMapping("/{id}/regenerar-dia")
+    public ResponseEntity<?> regenerarDia(
+            @PathVariable Long id,
+            @Parameter(description = "Fecha en formato yyyy-MM-dd", example = "2026-02-14")
+            @RequestParam LocalDate fecha) {
+
+        try {
+            ConfiguracionHorariaMedico config = configuracionService.obtenerPorId(id);
+
+            int generados = agendaService.regenerarDia(config, fecha);
+
+            return ResponseEntity.ok(Map.of(
+                    "status", "success",
+                    "message", "Turnos regenerados para el día indicado",
+                    "fecha", fecha,
+                    "turnos_regenerados", generados
+            ));
+
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of(
+                    "status", "error",
+                    "message", e.getMessage()
+            ));
+        }
+    }
+
+    // ============================================================
+    // REGENERAR TURNOS MANUALMENTE EN UN RANGO
+    // ============================================================
+    @Operation(
+            summary = "Regenerar turnos en un rango de fechas",
+            description = "Elimina los turnos disponibles dentro del rango indicado y los vuelve a generar según la configuración horaria del médico."
+    )
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "Turnos regenerados correctamente"),
+            @ApiResponse(responseCode = "404", description = "Configuración no encontrada")
+    })
+    @PostMapping("/{id}/regenerar-rango")
+    public ResponseEntity<?> regenerarRango(
+            @PathVariable Long id,
+            @Parameter(description = "Fecha de inicio en formato yyyy-MM-dd", example = "2026-02-14")
+            @RequestParam LocalDate inicio,
+            @Parameter(description = "Fecha de fin en formato yyyy-MM-dd", example = "2026-03-14")
+            @RequestParam LocalDate fin) {
+        try {
+            ConfiguracionHorariaMedico config = configuracionService.obtenerPorId(id);
+
+            int generados = agendaService.regenerarRango(config, inicio, fin);
+
+            return ResponseEntity.ok(Map.of(
+                    "status", "success",
+                    "message", "Turnos regenerados en el rango indicado",
+                    "desde", inicio,
+                    "hasta", fin,
+                    "turnos_regenerados", generados
+            ));
+
+        } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of(
                     "status", "error",
                     "message", e.getMessage()

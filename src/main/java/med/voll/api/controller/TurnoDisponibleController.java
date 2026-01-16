@@ -1,12 +1,14 @@
 package med.voll.api.controller;
 
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
-import med.voll.api.domain.horario.model.TurnoDisponible;
+import med.voll.api.domain.horario.dto.TurnoAccionDTO;
+import med.voll.api.domain.horario.dto.TurnoDisponibleDTO;
 import med.voll.api.domain.horario.service.TurnoDisponibleService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -38,9 +40,12 @@ public class TurnoDisponibleController {
     @GetMapping("/medico/{id}")
     public ResponseEntity<?> listar(@PathVariable Long id) {
 
+        List<TurnoDisponibleDTO> lista = turnoService.listarDisponibles(id);
+
         return ResponseEntity.ok(Map.of(
                 "status", "success",
-                "data", turnoService.listarDisponibles(id)
+                "total", lista.size(),
+                "data", lista
         ));
     }
 
@@ -59,10 +64,12 @@ public class TurnoDisponibleController {
     @PostMapping("/{turnoId}/reservar")
     public ResponseEntity<?> reservar(@PathVariable Long turnoId) {
 
+        TurnoAccionDTO dto = turnoService.reservar(turnoId);
+
         return ResponseEntity.ok(Map.of(
                 "status", "success",
                 "message", "Turno reservado correctamente",
-                "data", turnoService.reservar(turnoId)
+                "data", dto
         ));
     }
 
@@ -80,10 +87,12 @@ public class TurnoDisponibleController {
     @PostMapping("/{turnoId}/cancelar")
     public ResponseEntity<?> cancelar(@PathVariable Long turnoId) {
 
+        TurnoAccionDTO dto = turnoService.cancelar(turnoId);
+
         return ResponseEntity.ok(Map.of(
                 "status", "success",
                 "message", "Turno cancelado correctamente",
-                "data", turnoService.cancelar(turnoId)
+                "data", dto
         ));
     }
 
@@ -101,7 +110,9 @@ public class TurnoDisponibleController {
     @PostMapping("/medico/{id}/bloquear")
     public ResponseEntity<?> bloquear(
             @PathVariable Long id,
+            @Parameter(description = "Fecha en formato yyyy-MM-dd", example = "2026-02-14")
             @RequestParam LocalDate desde,
+            @Parameter(description = "Fecha en formato yyyy-MM-dd", example = "2026-02-14")
             @RequestParam LocalDate hasta
     ) {
 
@@ -110,6 +121,39 @@ public class TurnoDisponibleController {
         return ResponseEntity.ok(Map.of(
                 "status", "success",
                 "message", "Turnos bloqueados correctamente",
+                "data", Map.of(
+                        "medicoId", id,
+                        "desde", desde,
+                        "hasta", hasta
+                )
+        ));
+    }
+
+    // ==========================================================
+    // 5. Desbloquear rango de fechas (revertir bloqueo)
+    // ==========================================================
+    @Operation(
+            summary = "Desbloquear rango de fechas",
+            description = "Revierte el bloqueo de turnos del médico entre las fechas indicadas."
+    )
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "Turnos desbloqueados"),
+            @ApiResponse(responseCode = "404", description = "Médico no encontrado")
+    })
+    @PostMapping("/medico/{id}/desbloquear")
+    public ResponseEntity<?> desbloquear(
+            @PathVariable Long id,
+            @Parameter(description = "Fecha en formato yyyy-MM-dd", example = "2026-02-14")
+            @RequestParam LocalDate desde,
+            @Parameter(description = "Fecha en formato yyyy-MM-dd", example = "2026-02-14")
+            @RequestParam LocalDate hasta
+    ) {
+
+        turnoService.desbloquearRango(id, desde, hasta);
+
+        return ResponseEntity.ok(Map.of(
+                "status", "success",
+                "message", "Turnos desbloqueados correctamente",
                 "data", Map.of(
                         "medicoId", id,
                         "desde", desde,

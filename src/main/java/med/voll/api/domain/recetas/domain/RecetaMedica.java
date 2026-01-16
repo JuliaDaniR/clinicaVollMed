@@ -7,6 +7,7 @@ import med.voll.api.domain.medico.model.Medico;
 import med.voll.api.domain.paciente.model.Paciente;
 import med.voll.api.domain.recetas.dto.DatosCrearReceta;
 import med.voll.api.domain.recetas.dto.DatosDetalleReceta;
+import med.voll.api.domain.shared.BaseAuditable;
 
 import java.time.LocalDate;
 
@@ -16,7 +17,7 @@ import java.time.LocalDate;
 @Setter
 @NoArgsConstructor
 @AllArgsConstructor
-public class RecetaMedica {
+public class RecetaMedica extends BaseAuditable {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)

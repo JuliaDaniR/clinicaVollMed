@@ -10,7 +10,7 @@ import java.util.Optional;
 
 @Repository
 public interface ConfiguracionHorariaMedicoRepository extends JpaRepository<ConfiguracionHorariaMedico, Long> {
-    Optional<Object> findByMedicoAndActivaTrue(Medico medico);
+    Optional<Object> findByMedicoAndActivoTrue(Medico medico);
 
     List<ConfiguracionHorariaMedico> findByMedico(Medico medico);
 }

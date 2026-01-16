@@ -9,6 +9,9 @@ public record TurnoDisponibleDTO(
         Long id,
         LocalDate fecha,
         LocalTime hora,
-        EstadoTurno estado
+        EstadoTurno estado,
+        Long medicoId,
+        String medicoNombre
 ) {}
+
 

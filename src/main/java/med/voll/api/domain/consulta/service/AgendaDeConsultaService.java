@@ -4,21 +4,24 @@ import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import med.voll.api.domain.consulta.dto.DatosAgendarConsulta;
 import med.voll.api.domain.consulta.dto.DatosDetalleConsulta;
+import med.voll.api.domain.consulta.dto.DatosReprogramarConsulta;
 import med.voll.api.domain.consulta.model.Consulta;
 import med.voll.api.domain.consulta.validaciones.DatosCancelamientoConsulta;
-import med.voll.api.domain.consulta.validaciones.ValidadorCancelamientoDeConsulta;
+import med.voll.api.domain.consulta.validaciones.DatosValidacionConsulta;
 import med.voll.api.domain.consulta.validaciones.ValidadorDeConsultas;
-import med.voll.api.domain.medico.model.Medico;
+import med.voll.api.domain.horario.model.TurnoDisponible;
+import med.voll.api.domain.horario.model.enumerator.EstadoTurno;
+import med.voll.api.domain.horario.repository.TurnoDisponibleRepository;
 import med.voll.api.domain.paciente.model.Paciente;
 import med.voll.api.infra.errores.ApiResponseDTO;
 import med.voll.api.infra.errores.ValidacionIntegridad;
 import med.voll.api.domain.consulta.repository.IConsultaRepository;
 import med.voll.api.domain.medico.repository.MedicoRepository;
 import med.voll.api.domain.paciente.repository.IPacienteRepository;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
 
@@ -29,31 +32,44 @@ public class AgendaDeConsultaService {
     private final IConsultaRepository consultaRepo;
     private final MedicoRepository medicoRepo;
     private final IPacienteRepository pacienteRepo;
+    private final TurnoDisponibleRepository turnoRepo;
     private final List<ValidadorDeConsultas> validadores;
-    private final List<ValidadorCancelamientoDeConsulta> validadoresCancelamiento;
 
-    // ==========================================================
-    // AGENDAR CONSULTA
-    // ==========================================================
+    /* ============================================================
+       1. AGENDAR CONSULTA
+       ============================================================ */
     @Transactional
     public ApiResponseDTO agendarConsulta(DatosAgendarConsulta dto) {
 
         Paciente paciente = pacienteRepo.findById(dto.idPaciente())
                 .orElseThrow(() -> new ValidacionIntegridad("Paciente no encontrado"));
 
-        if (dto.idMedico() != null && !medicoRepo.existsById(dto.idMedico())) {
-            throw new ValidacionIntegridad("Médico no encontrado");
+        TurnoDisponible turno = turnoRepo.findById(dto.idTurno())
+                .orElseThrow(() -> new ValidacionIntegridad("Turno no encontrado"));
+
+        if (turno.getEstado() != EstadoTurno.DISPONIBLE) {
+            throw new ValidacionIntegridad("El turno no está disponible");
         }
 
-        validadores.forEach(v -> v.validar(dto));
+        // Construcción DTO para validadores
+        DatosValidacionConsulta datosVal = new DatosValidacionConsulta(
+                paciente.getId(),
+                turno.getMedico().getId(),
+                LocalDateTime.of(turno.getFecha(), turno.getHora())
+        );
 
-        Medico medico = seleccionarMedico(dto);
+        validadores.forEach(v -> v.validar(datosVal));
 
-        if (medico == null) {
-            throw new ValidacionIntegridad("No hay médicos disponibles para ese horario");
-        }
+        // Reservar turno
+        turno.setEstado(EstadoTurno.RESERVADO);
+        turnoRepo.save(turno);
 
-        Consulta consulta = new Consulta(medico, paciente, dto.fecha());
+        Consulta consulta = new Consulta(
+                turno.getMedico(),
+                paciente,
+                turno,
+                dto.motivoConsulta()
+        );
 
         consultaRepo.save(consulta);
 
@@ -65,16 +81,18 @@ public class AgendaDeConsultaService {
         );
     }
 
-    // ==========================================================
-    // CANCELAR CONSULTA
-    // ==========================================================
+    /* ============================================================
+       2. CANCELAR CONSULTA
+       ============================================================ */
     @Transactional
     public ApiResponseDTO cancelarConsulta(DatosCancelamientoConsulta dto) {
 
         Consulta consulta = consultaRepo.findById(dto.idConsulta())
                 .orElseThrow(() -> new ValidacionIntegridad("Consulta no encontrada"));
 
-        validadoresCancelamiento.forEach(v -> v.validar(dto));
+        TurnoDisponible turno = consulta.getTurno();
+        turno.setEstado(EstadoTurno.DISPONIBLE);
+        turnoRepo.save(turno);
 
         consulta.cancelar(dto.motivo());
 
@@ -86,44 +104,49 @@ public class AgendaDeConsultaService {
         );
     }
 
-    // ==========================================================
-    // ACTUALIZAR CONSULTA
-    // ==========================================================
+    /* ============================================================
+       3. REPROGRAMAR CONSULTA
+       ============================================================ */
     @Transactional
-    public ApiResponseDTO actualizarConsulta(DatosAgendarConsulta.DatosActualizarConsulta dto) {
+    public ApiResponseDTO reprogramarConsulta(DatosReprogramarConsulta dto) {
 
-        Consulta consulta = consultaRepo.findById(dto.id())
+        Consulta consulta = consultaRepo.findById(dto.idConsulta())
                 .orElseThrow(() -> new ValidacionIntegridad("Consulta no encontrada"));
 
-        Medico medico = medicoRepo.findById(dto.idMedico())
-                .orElse(consulta.getMedico());
+        TurnoDisponible turnoViejo = consulta.getTurno();
 
-        Paciente paciente = pacienteRepo.findById(dto.idPaciente())
-                .orElse(consulta.getPaciente());
+        TurnoDisponible turnoNuevo = turnoRepo.findById(dto.idNuevoTurno())
+                .orElseThrow(() -> new ValidacionIntegridad("Nuevo turno no encontrado"));
 
-        consulta.actualizar(dto, medico, paciente);
+        if (turnoNuevo.getEstado() != EstadoTurno.DISPONIBLE) {
+            throw new ValidacionIntegridad("El nuevo turno no está disponible");
+        }
+
+        // Validación del nuevo turno
+        DatosValidacionConsulta datosVal = new DatosValidacionConsulta(
+                consulta.getPaciente().getId(),
+                turnoNuevo.getMedico().getId(),
+                LocalDateTime.of(turnoNuevo.getFecha(), turnoNuevo.getHora())
+        );
+
+        validadores.forEach(v -> v.validar(datosVal));
+
+        // liberar turno viejo
+        turnoViejo.setEstado(EstadoTurno.DISPONIBLE);
+        turnoRepo.save(turnoViejo);
+
+        // reservar turno nuevo
+        turnoNuevo.setEstado(EstadoTurno.RESERVADO);
+        turnoRepo.save(turnoNuevo);
+
+        consulta.reprogramar(turnoNuevo);
 
         return new ApiResponseDTO(
                 true,
-                "Consulta actualizada correctamente",
+                "Consulta reprogramada correctamente",
                 new DatosDetalleConsulta(consulta),
                 HttpStatus.OK
         );
     }
-
-    // ==========================================================
-    // MÉTODO PRIVADO
-    // ==========================================================
-    private Medico seleccionarMedico(DatosAgendarConsulta dto) {
-
-        if (dto.idMedico() != null) {
-            return medicoRepo.getReferenceById(dto.idMedico());
-        }
-
-        if (dto.especialidad() == null) {
-            throw new ValidacionIntegridad("Debe especificar una especialidad");
-        }
-
-        return medicoRepo.seleccionarMedicoPorEspecialidadEnFecha(dto.especialidad(), dto.fecha());
-    }
 }
+

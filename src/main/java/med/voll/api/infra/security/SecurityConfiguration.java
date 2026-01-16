@@ -61,7 +61,8 @@ public class SecurityConfiguration {
                         .requestMatchers("/pacientes/**").hasAnyRole("ADMIN", "RECEPCIONISTA")
                         .requestMatchers("/consultas/**").hasAnyRole("ADMIN", "RECEPCIONISTA", "MEDICO")
 
-                        // 👉 Cualquier otra ruta requiere autenticación
+                        .requestMatchers("/horarios/**").hasAnyRole("ADMIN", "RECEPCIONISTA")
+
                         .requestMatchers(HttpMethod.POST, "/usuario/cambio-email").authenticated()
                         .requestMatchers(HttpMethod.POST, "/usuario/confirmar-cambio-email").authenticated()
                         .anyRequest().authenticated()

@@ -7,20 +7,22 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
 @Component
-public class MedicoConConsulta implements ValidadorDeConsultas{
+public class MedicoConConsulta implements ValidadorDeConsultas {
+
     @Autowired
     private IConsultaRepository consultaRepo;
 
-    public void validar(DatosAgendarConsulta datos){
-        if(datos.idMedico()==null){
-            return;
-        }
+    public void validar(DatosValidacionConsulta datos) {
 
-        var medicoConConsulta = consultaRepo.existsByMedicoIdAndFecha(datos.idMedico(),datos.fecha());
+        if (datos.idMedico() == null) return;
 
-        if(medicoConConsulta){
-            throw new ValidationException("Este medico ya tiene una consulta en ese horario");
+        boolean existe = consultaRepo.existsByMedicoIdAndFecha(
+                datos.idMedico(),
+                datos.fecha()
+        );
+
+        if (existe) {
+            throw new ValidationException("El médico ya tiene una consulta en ese horario");
         }
     }
-
 }
