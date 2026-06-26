@@ -153,12 +153,18 @@ export default function AuthModal({ isOpen, onClose, initialMode }: AuthModalPro
     }
   }
 
+  const handleQuickLogin = (email: string, pass: string) => {
+    setLoginEmail(email)
+    setLoginPassword(pass)
+    showToast(`Autocompletado: ${email}`, 'success')
+  }
+
   if (!isOpen) return null
 
   return (
     <motion.div 
       className="modal-overlay"
-      style={{ zIndex: 1200, animation: 'none' }}
+      style={{ zIndex: 1200, animation: 'none', display: 'flex', gap: '30px', flexWrap: 'wrap', justifyContent: 'center', alignItems: 'center', overflowY: 'auto', padding: '20px' }}
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
@@ -166,7 +172,7 @@ export default function AuthModal({ isOpen, onClose, initialMode }: AuthModalPro
     >
       <motion.div 
         className={`login-card glass-card ${isRegister ? 'register-mode' : ''}`}
-        style={{ position: 'relative', width: '90%', margin: '20px auto' }}
+        style={{ position: 'relative', width: '100%', maxWidth: isRegister ? '720px' : '440px', margin: '0' }}
         initial={{ opacity: 0, scale: 0.95, y: 20 }}
         animate={{ opacity: 1, scale: 1, y: 0 }}
         exit={{ opacity: 0, scale: 0.95, y: 20 }}
@@ -502,6 +508,63 @@ export default function AuthModal({ isOpen, onClose, initialMode }: AuthModalPro
           </form>
         )}
       </motion.div>
+
+      {/* Test Accounts Card */}
+      {!isRegister && (
+        <div className="glass-card" style={{ maxWidth: '380px', padding: '30px', flex: '1 1 320px', display: 'flex', flexDirection: 'column', gap: '20px' }}>
+          <h3 style={{ fontSize: '1.25rem', color: 'var(--color-primary)', display: 'flex', alignItems: 'center', gap: '10px', margin: 0 }}>
+            <Activity size={22} />
+            Cuentas de Prueba
+          </h3>
+          <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', margin: 0, lineHeight: '1.4' }}>
+            Haz clic en cualquier perfil para autocompletar las credenciales:
+          </p>
+          
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+            {[
+              { rol: 'Administrador', email: 'admin@vollmed.com', pass: 'admin123', color: 'var(--color-accent)' },
+              { rol: 'Médico', email: 'medico@vollmed.com', pass: 'medico123', color: 'var(--color-primary)' },
+              { rol: 'Paciente', email: 'paciente@vollmed.com', pass: 'paciente123', color: 'var(--color-secondary)' },
+              { rol: 'Recepcionista', email: 'recepcionista@vollmed.com', pass: 'recepcionista123', color: '#9FB1A7' }
+            ].map((item) => (
+              <button
+                key={item.email}
+                type="button"
+                onClick={() => handleQuickLogin(item.email, item.pass)}
+                style={{
+                  background: 'rgba(255, 255, 255, 0.02)',
+                  border: '1px solid var(--border-glass)',
+                  borderRadius: 'var(--radius-md)',
+                  padding: '12px',
+                  textAlign: 'left',
+                  cursor: 'pointer',
+                  transition: 'var(--transition-smooth)',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '4px'
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.background = 'rgba(255, 255, 255, 0.05)';
+                  e.currentTarget.style.borderColor = item.color;
+                  e.currentTarget.style.boxShadow = '0 0 10px rgba(var(--color-primary-rgb), 0.1)';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.background = 'rgba(255, 255, 255, 0.02)';
+                  e.currentTarget.style.borderColor = 'var(--border-glass)';
+                  e.currentTarget.style.boxShadow = 'none';
+                }}
+              >
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <span style={{ fontSize: '0.9rem', fontWeight: '600', color: item.color }}>{item.rol}</span>
+                  <span style={{ fontSize: '0.7rem', background: 'rgba(255,255,255,0.05)', padding: '2px 6px', borderRadius: '4px', color: 'var(--text-muted)', fontWeight: '600' }}>Demo</span>
+                </div>
+                <div style={{ fontSize: '0.8rem', color: 'var(--text-main)', fontFamily: 'monospace' }}>{item.email}</div>
+                <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Contraseña: <span style={{ fontFamily: 'monospace', color: 'var(--text-main)' }}>{item.pass}</span></div>
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Forgot Password Modal */}
       {isForgotModalOpen && (
