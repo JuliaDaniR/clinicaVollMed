@@ -1,0 +1,66 @@
+services:
+
+  # ==========================================
+  # Base de datos MySQL (solo para uso LOCAL)
+  # En producción usamos Aiven
+  # ==========================================
+  db:
+    image: mysql:8.0
+    container_name: vollmed_db
+    restart: unless-stopped
+    environment:
+      MYSQL_DATABASE: vollmed-api
+      MYSQL_ROOT_PASSWORD: ${VOLLMED_DB_PASS:-rootpass}
+    ports:
+      - "3307:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p${VOLLMED_DB_PASS:-rootpass}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
+  # ==========================================
+  # Backend Spring Boot
+  # ==========================================
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: vollmed_backend
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    environment:
+      # Apunta al servicio "db" de este compose (solo local)
+      VOLLMED_DB_URL: jdbc:mysql://db:3306/vollmed-api?createDatabaseIfNotExist=true
+      VOLLMED_DB_USER: root
+      VOLLMED_DB_PASS: ${VOLLMED_DB_PASS:-rootpass}
+      JWT_SECRET: ${JWT_SECRET}
+      MAILTRAP_USER: ${MAILTRAP_USER}
+      MAILTRAP_PASS: ${MAILTRAP_PASS}
+      OPENROUTER_API_KEY: ${OPENROUTER_API_KEY}
+      GEMINI_API_KEY: ${GEMINI_API_KEY}
+      CORS_ALLOWED_ORIGINS: http://localhost:80,http://localhost:5173
+    depends_on:
+      db:
+        condition: service_healthy
+
+  # ==========================================
+  # Frontend React + Nginx
+  # ==========================================
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: vollmed_frontend
+    restart: unless-stopped
+    ports:
+      - "80:80"
+    depends_on:
+      - backend
+
+volumes:
+  mysql_data:

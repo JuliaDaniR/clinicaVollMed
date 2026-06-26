@@ -1,0 +1,22 @@
+spring:
+  profiles:
+    active: prod
+
+  datasource:
+    url: ${VOLLMED_DB_URL}
+    username: ${VOLLMED_DB_USER}
+    password: ${VOLLMED_DB_PASS}
+
+  jpa:
+    show-sql: false
+    properties:
+      hibernate:
+        format_sql: false
+
+server:
+  error:
+    include-stacktrace: never
+
+api:
+  security:
+    secret: ${JWT_SECRET}
